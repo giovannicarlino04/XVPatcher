@@ -415,9 +415,9 @@ DWORD WINAPI CommandConsoleThread(LPVOID lpParam)
 
         // Here you can process the command as needed
         if (command == "Hello")
-			DPRINTF("Hello, World!");
+			DPRINTF("Hello, World!\n");
         else
-			DPRINTF("Command Entered %s", command.c_str());
+			DPRINTF("Command Entered %s\n", command.c_str());
     }
 
     FreeConsole();
