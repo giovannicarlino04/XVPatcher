@@ -401,6 +401,29 @@ DWORD WINAPI StartThread(LPVOID)
 	return 0;
 }
 
+// Function to handle the second console for command input
+DWORD WINAPI CommandConsoleThread(LPVOID lpParam)
+{
+    AllocConsole();
+    freopen("CONIN$", "r", stdin); // Redirect stdin to the console
+    
+    // Example of reading commands
+    std::string command;
+    while (true)
+    {
+        std::getline(std::cin, command);
+
+        // Here you can process the command as needed
+        if (command == "Hello")
+			DPRINTF("Hello, World!");
+        else
+			DPRINTF("Command Entered %s", command.c_str());
+    }
+
+    FreeConsole();
+    return 0;
+}
+
 extern "C" BOOL EXPORT DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
 {
     HANDLE consoleHandle = nullptr;
@@ -527,6 +550,16 @@ extern "C" BOOL EXPORT DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvRe
             {
                 DPRINTF("CPK Patch is not enabled or the key is not present.\n");
             }
+
+            // Create a thread for the command console
+            HANDLE hThread = CreateThread(nullptr, 0, CommandConsoleThread, nullptr, 0, nullptr);
+            if (hThread == nullptr)
+            {
+                UPRINTF("Failed to create command console thread.\n");
+                return FALSE;
+            }
+            CloseHandle(hThread);
+
 			/////////////////////////////////////////////
             if (!PatchUtils::HookImport("KERNEL32.dll", "GetStartupInfoW", (void *)GetStartupInfoW_Patched))
             {
@@ -550,4 +583,3 @@ extern "C" BOOL EXPORT DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvRe
 
     return TRUE;
 }
-
