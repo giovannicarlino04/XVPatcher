@@ -43,7 +43,6 @@ std::map<std::string, std::string> readIniFile(const std::string& filename) {
 
     if (!file.is_open()) {
         UPRINTF("Error opening ini file, please install the patcher correctly.");
-        return;
     }
 
     std::string line;
