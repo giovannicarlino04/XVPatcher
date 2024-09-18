@@ -11,7 +11,7 @@ CFLAGS := -Wall -I. -I./ -std=gnu99 -mms-bitfields -s -O2 -masm=intel -shared -W
 CPPFLAGS := -Wall -O2 -mno-ms-bitfields -std=c++11 -DTIXML_USE_STL -DNO_ZLIB
 CXXFLAGS := -Wall -Wno-strict-aliasing -I./ -O2 -std=c++11 -mms-bitfields -DTIXML_USE_STL -fpermissive
 LDFLAGS := -static xinput.def
-LIBS := -lxinput1_3 -lstdc++ -lversion -lpthread -lMinHook
+LIBS := -lxinput1_3 -lstdc++ -lversion -lpthread -lMinHook -lgdi32
 
 .PHONY: all clean
 

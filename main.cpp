@@ -400,63 +400,59 @@ DWORD WINAPI StartThread(LPVOID)
 	return 0;
 }
 
-// Function to handle the second console for command input
-DWORD WINAPI CommandConsoleThread(LPVOID lpParam)
-{
-    AllocConsole();
-    freopen("CONIN$", "r", stdin); // Redirect stdin to the console
-    
-    // Example of reading commands
-    std::string command;
-    while (true)
-    {
-        std::getline(std::cin, command);
+void ApplyFullscreenPatch() {
+    HWND windowHandle = NULL;
+    int maxAttempts = 50;   // Retry for up to 10 seconds
+    int waitTime = 200;     // Wait time between attempts (200 ms)
 
-        // Here you can process the command as needed
-        if (command == "Hello")
-			DPRINTF("Hello, World!\n");
-        else
-			DPRINTF("Command Entered %s\n", command.c_str());
+    // Retry loop to wait for the game window to appear
+    while (maxAttempts > 0 && windowHandle == NULL) {
+        windowHandle = FindWindow(NULL, "DRAGON BALL XENOVERSE"); // Update with actual window title
+        if (windowHandle != NULL) {
+            DPRINTF("Game window found!\n");
+            break;
+        }
+        DPRINTF("Waiting for game window...\n");
+        Sleep(waitTime);   // Wait before retrying
+        maxAttempts--;
     }
 
-    FreeConsole();
-    return 0;
+    if (windowHandle == NULL) {
+        DPRINTF("Failed to find game window after retries.\n");
+        return;
+    }
+
+    // Get the device context for the window
+    HDC windowHDC = GetDC(windowHandle);
+    if (windowHDC == NULL) {
+        DPRINTF("Failed to get device context.\n");
+        return;
+    }
+
+    // Get the screen's resolution
+    int fullscreenWidth = GetDeviceCaps(windowHDC, DESKTOPHORZRES);
+    int fullscreenHeight = GetDeviceCaps(windowHDC, DESKTOPVERTRES);
+
+    // Release the DC after usage to avoid resource leaks
+    ReleaseDC(windowHandle, windowHDC);
+
+    // Apply the windowed fullscreen patch
+    if (!WindowedFullscreenPatch(windowHandle, fullscreenWidth, fullscreenHeight)) {
+        DPRINTF("Failed to apply windowed fullscreen patch.\n");
+    } else {
+        DPRINTF("Windowed FullScreen Patch applied successfully.\n");
+    }
 }
 
 extern "C" BOOL EXPORT DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
 {
-    HANDLE consoleHandle = nullptr;
     std::map<std::string, std::string> iniValues = readIniFile(INI_FILE);
-
-    // This patch MUST go here, it's not optional!!!
-    std::string keyToCheck = "Debug.Debug_Console";
-    if (iniValues.find(keyToCheck) != iniValues.end() && iniValues[keyToCheck] == "True")
-    {
-        // Allocate a console for the application
-        AllocConsole();
-
-        // Get handle to the console output
-        consoleHandle = GetStdHandle(STD_OUTPUT_HANDLE);
-        if (consoleHandle == INVALID_HANDLE_VALUE)
-        {
-            // Handle error, if needed
-            return 1;
-        }
-
-        // Redirect standard output to the console
-        freopen("CONOUT$", "w", stdout);
-        freopen("CONOUT$", "w", stderr);
-    }
-    else
-    {
-        DPRINTF("Console Debugging is not enabled or the key is not present.\n");
-    }
-    ////////////////////////////////////////////////
 
     switch (fdwReason)
     {
     case DLL_PROCESS_ATTACH:
     {
+		HWND windowHandle = FindWindow(NULL, "DRAGON BALL XENOVERSE"); 
 
         if (InGameProcess())
         {
@@ -550,14 +546,17 @@ extern "C" BOOL EXPORT DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvRe
                 DPRINTF("CPK Patch is not enabled or the key is not present.\n");
             }
 
-            // Create a thread for the command console
-            HANDLE hThread = CreateThread(nullptr, 0, CommandConsoleThread, nullptr, 0, nullptr);
-            if (hThread == nullptr)
-            {
-                UPRINTF("Failed to create command console thread.\n");
-                return FALSE;
-            }
-            CloseHandle(hThread);
+			keyToCheck = "Patches.WindowedFullScreen_Patch";
+			if (iniValues.find(keyToCheck) != iniValues.end() && iniValues[keyToCheck] == "True") {
+				DPRINTF("Windowed FullScreen Patch is enabled.\n");
+
+				// Create a new thread to handle the windowed fullscreen patch asynchronously
+				std::thread fullscreenThread(ApplyFullscreenPatch);
+				fullscreenThread.detach();  // Detach the thread so it runs independently
+			} else {
+				DPRINTF("Windowed FullScreen Patch is not enabled or the key is not present.\n");
+			}
+
 
 			/////////////////////////////////////////////
             if (!PatchUtils::HookImport("KERNEL32.dll", "GetStartupInfoW", (void *)GetStartupInfoW_Patched))
@@ -573,7 +572,6 @@ extern "C" BOOL EXPORT DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvRe
     {
         if (!lpvReserved)
         {
-            FreeConsole();
             unload_dll();
         }
     }
