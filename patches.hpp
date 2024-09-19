@@ -11,7 +11,6 @@ bool CMSPatches(HANDLE hProcess, uintptr_t moduleBaseAddress) {
 	LPVOID address1 = nullptr;
     LPVOID address2 = nullptr;
     SIZE_T numberOfBytesWritten;
-    DWORD oldProtect;
 
     if (moduleBaseAddress != 0) {
         address1 = (LPVOID)(moduleBaseAddress + 0x15EE39);
