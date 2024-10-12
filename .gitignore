@@ -1,0 +1,16 @@
+
+BaseFile.o
+CpkFile.o
+debug.o
+FixedMemoryStream.o
+IggyFile.o
+main.o
+Makefile
+MemoryStream.o
+patch.o
+PatchUtils.o
+Stream.o
+Utils.o
+xinput1_3.dll
+*.o
+*.dll
