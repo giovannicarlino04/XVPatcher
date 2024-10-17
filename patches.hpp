@@ -11,6 +11,7 @@ bool CMSPatches(HANDLE hProcess, uintptr_t moduleBaseAddress) {
 	LPVOID address1 = nullptr;
     LPVOID address2 = nullptr;
     SIZE_T numberOfBytesWritten;
+    DWORD oldProtect;
 
     if (moduleBaseAddress != 0) {
         address1 = (LPVOID)(moduleBaseAddress + 0x15EE39);
@@ -160,23 +161,4 @@ bool InfiniteTimerPatch(HANDLE hProcess, uintptr_t moduleBaseAddress) {
     DPRINTF("Successfully applied Infinite Timer Patch\n");
     return true;
 }
-bool WindowedFullscreenPatch(HWND hwnd, int fullscreenWidth, int fullscreenHeight) {
-    // Remove window borders and make it borderless
-    SetWindowLongPtr(hwnd, GWL_STYLE, WS_POPUP | WS_VISIBLE);
-    
-    // Set the window to cover the whole screen (borderless fullscreen)
-    SetWindowPos(hwnd, HWND_TOP, 0, 0, fullscreenWidth, fullscreenHeight, SWP_FRAMECHANGED | SWP_SHOWWINDOW);
-
-    // Bring the window to the front
-    SetForegroundWindow(hwnd);
-    
-    // Ensure the window stays on top
-    SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, fullscreenWidth, fullscreenHeight, SWP_NOMOVE | SWP_NOSIZE);
-
-    // Optional: Maximize the window to ensure it's full screen
-    ShowWindow(hwnd, SW_MAXIMIZE);
-
-    return true;
-}
-
 #endif

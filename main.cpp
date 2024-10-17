@@ -30,60 +30,314 @@ static Mutex mutex;
 HMODULE myself;
 std::string myself_path;
 
+typedef int (* ExternalAS3CallbackType)(void *custom_arg, void *iggy_obj, const char **pfunc_name);
 typedef void *(* IggyPlayerCallbackResultPathType)(void *unk0);
-static IggyPlayerCallbackResultPathType IggyPlayerCallbackResultPath;
 typedef void (* IggyValueSetStringUTF8RSType)(void *arg1, void *unk2, void *unk3, const char *str, size_t length);
+typedef void (* IggyValueSetS32RSType)(void *arg1, uint32_t unk2, uint32_t unk3, uint32_t value);
+typedef void (* _Battle_Mob_Destructor)(void *);
+
+static ExternalAS3CallbackType ExternalAS3Callback;
+static IggyPlayerCallbackResultPathType IggyPlayerCallbackResultPath;
 static IggyValueSetStringUTF8RSType IggyValueSetStringUTF8RS;
+static IggyValueSetS32RSType IggyValueSetS32RS;
+static _Battle_Mob_Destructor Battle_Mob_Destructor;
+
+PUBLIC int ExternalAS3CallbackPatched(void *custom_arg, void *iggy_obj, const char **pfunc_name)
+{
+	//DPRINTF("ExternalAS3Callback: %s\n", *func_name);
+		
+	if (pfunc_name && *pfunc_name)
+	{
+		const char *func_name = *pfunc_name;
+		
+		if (strlen(func_name) > 4)
+		{		
+			//DPRINTF("Calling %s\n", func_name);
+			
+			func_name += 4;
+			
+			if (!IggyPlayerCallbackResultPath)
+			{
+				HMODULE iggy = GetModuleHandle("iggy_w32.dll");
+				
+				IggyPlayerCallbackResultPath = (IggyPlayerCallbackResultPathType)GetProcAddress(iggy, "_IggyPlayerCallbackResultPath@4");
+				IggyValueSetStringUTF8RS = (IggyValueSetStringUTF8RSType)GetProcAddress(iggy, "_IggyValueSetStringUTF8RS@20");
+				IggyValueSetS32RS = (IggyValueSetS32RSType)GetProcAddress(iggy, "_IggyValueSetS32RS@16");
+			}
+			/*
+			if (strcmp(func_name, "ShouldExtendPauseMenu") == 0)
+			{
+				void *ret = IggyPlayerCallbackResultPath(iggy_obj);
+				if (!ret)
+				{
+					DPRINTF("IggyPlayerCallbackResultPath returned NULL\n");
+					return 0;
+				}
+				
+				IggyValueSetS32RS(ret, 0, 0, should_extend_pause_menu);			
+				return 1;
+			}
+			
 
 
-std::map<std::string, std::string> readIniFile(const std::string& filename) {
-    
-    std::map<std::string, std::string> iniValues;
-    std::ifstream file(filename);
+			else if (strcmp(func_name, "GetSlotsData") == 0)
+			{
+				void *ret = IggyPlayerCallbackResultPath(iggy_obj);
+				if (!ret)
+				{
+					DPRINTF("IggyPlayerCallbackResultPath returned NULL\n");
+					return 0;
+				}
+				
+				const std::string &slots = GetSlotsData();
+				IggyValueSetStringUTF8RS(ret, nullptr, nullptr, slots.c_str(), slots.length());			
+				return 1;
+			}
+			
 
-    if (!file.is_open()) {
-        UPRINTF("Error opening ini file, please install the patcher correctly.");
-    }
-
-    std::string line;
-    std::string currentSection;
-
-    while (std::getline(file, line)) {
-        // Remove leading and trailing whitespaces
-        line.erase(0, line.find_first_not_of(" \t\r\n"));
-        line.erase(line.find_last_not_of(" \t\r\n") + 1);
-
-        if (line.empty() || line[0] == ';') {
-            // Skip empty lines or comments starting with ';'
-            continue;
-        } else if (line[0] == '[' && line[line.length() - 1] == ']') {
-            // New section
-            currentSection = line.substr(1, line.length() - 2);
-        } else {
-            // Key-value pair
-            size_t separatorPos = line.find('=');
-
-            if (separatorPos != std::string::npos) {
-                std::string key = line.substr(0, separatorPos);
-                std::string value = line.substr(separatorPos + 1);
-
-                // Remove leading and trailing whitespaces from key and value
-                key.erase(0, key.find_first_not_of(" \t\r\n"));
-                key.erase(key.find_last_not_of(" \t\r\n") + 1);
-                value.erase(0, value.find_first_not_of(" \t\r\n"));
-                value.erase(value.find_last_not_of(" \t\r\n") + 1);
-
-                iniValues[currentSection + "." + key] = value;
-            } else {
-                std::cerr << "Invalid line in INI file: " << line << std::endl;
-            }
-        }
-    }
-
-    file.close();
-
-    return iniValues;
+			
+			else if (strcmp(func_name, "IsBattleUIHidden") == 0)
+			{
+				void *ret = IggyPlayerCallbackResultPath(iggy_obj);
+				if (!ret)
+				{
+					DPRINTF("IggyPlayerCallbackResultPath returned NULL\n");
+					return 0;
+				}
+				
+				IggyValueSetS32RS(ret, 0, 0, IsBattleUIHidden());			
+				return 1;
+			}
+			
+			else if (strcmp(func_name, "ToggleBattleUI") == 0)
+			{
+				ToggleBattleUI();
+				return 1;
+			}
+			
+			else if (strcmp(func_name, "GetFirstAutoGenPortraitCharName") == 0)
+			{
+				void *ret = IggyPlayerCallbackResultPath(iggy_obj);
+				if (!ret)
+				{
+					DPRINTF("IggyPlayerCallbackResultPath returned NULL\n");
+					return 0;
+				}
+				
+				const std::string name = GetFirstAutoGenPortraitCharName();
+				IggyValueSetStringUTF8RS(ret, nullptr, nullptr, name.c_str(), name.length());			
+				return 1;
+			}
+			
+			else if (strcmp(func_name, "CanDumpAutoGenPortrait") == 0)
+			{
+				void *ret = IggyPlayerCallbackResultPath(iggy_obj);
+				if (!ret)
+				{
+					DPRINTF("IggyPlayerCallbackResultPath returned NULL\n");
+					return 0;
+				}
+				
+				IggyValueSetS32RS(ret, 0, 0, CanDumpAutoGenPortrait());			
+				return 1;
+			}
+			
+			else if (strcmp(func_name, "DumpAutoGenPortrait") == 0)
+			{
+				DumpAutoGenPortrait();
+				return 1;
+			}
+			
+			else if (strcmp(func_name, "GetNumSsStages") == 0)
+			{
+				void *ret = IggyPlayerCallbackResultPath(iggy_obj);
+				if (!ret)
+				{
+					DPRINTF("IggyPlayerCallbackResultPath returned NULL\n");
+					return 0;
+				}
+				
+				IggyValueSetS32RS(ret, 0, 0, GetNumSsStages());			
+				return 1;
+			}
+			
+			else if (strcmp(func_name, "GetStagesSlotsData") == 0)
+			{
+				void *ret = IggyPlayerCallbackResultPath(iggy_obj);
+				if (!ret)
+				{
+					DPRINTF("IggyPlayerCallbackResultPath returned NULL\n");
+					return 0;
+				}
+				
+				const std::string &slots = GetStagesSlotsData();
+				IggyValueSetStringUTF8RS(ret, nullptr, nullptr, slots.c_str(), slots.length());			
+				return 1;
+			}
+			
+			else if (strcmp(func_name, "GetLocalStagesSlotsData") == 0)
+			{
+				void *ret = IggyPlayerCallbackResultPath(iggy_obj);
+				if (!ret)
+				{
+					DPRINTF("IggyPlayerCallbackResultPath returned NULL\n");
+					return 0;
+				}
+				
+				const std::string &slots = GetLocalStagesSlotsData();
+				IggyValueSetStringUTF8RS(ret, nullptr, nullptr, slots.c_str(), slots.length());			
+				return 1;
+			}
+			
+			else if (strstr(func_name, "GetStageName") == func_name)
+			{
+				void *ret = IggyPlayerCallbackResultPath(iggy_obj);
+				if (!ret)
+				{
+					DPRINTF("IggyPlayerCallbackResultPath returned NULL\n");
+					return 0;
+				}
+				
+				int ssid = 0;
+				sscanf(func_name+strlen("GetStageName"), "%d", &ssid);
+				
+				const std::string name = GetStageName(ssid);
+				
+				IggyValueSetStringUTF8RS(ret, nullptr, nullptr, name.c_str(), name.length());			
+				return 1;				
+			}
+			
+			else if (strstr(func_name, "GetStageImageString") == func_name)
+			{
+				void *ret = IggyPlayerCallbackResultPath(iggy_obj);
+				if (!ret)
+				{
+					DPRINTF("IggyPlayerCallbackResultPath returned NULL\n");
+					return 0;
+				}
+				
+				int ssid = 0;
+				sscanf(func_name+strlen("GetStageImageString"), "%d", &ssid);
+				
+				const std::string name = GetStageImageString(ssid);
+				
+				IggyValueSetStringUTF8RS(ret, nullptr, nullptr, name.c_str(), name.length());			
+				return 1;				
+			}
+			
+			else if (strstr(func_name, "GetStageIconString") == func_name)
+			{
+				void *ret = IggyPlayerCallbackResultPath(iggy_obj);
+				if (!ret)
+				{
+					DPRINTF("IggyPlayerCallbackResultPath returned NULL\n");
+					return 0;
+				}
+				
+				int ssid = 0;
+				sscanf(func_name+strlen("GetStageIconString"), "%d", &ssid);
+				
+				const std::string name = GetStageIconString(ssid);
+				
+				IggyValueSetStringUTF8RS(ret, nullptr, nullptr, name.c_str(), name.length());			
+				return 1;				
+			}
+			else if (strstr(func_name, "StageHasBeenSelectedBefore") == func_name)
+			{
+				void *ret = IggyPlayerCallbackResultPath(iggy_obj);
+				if (!ret)
+				{
+					DPRINTF("IggyPlayerCallbackResultPath returned NULL\n");
+					return 0;
+				}
+				
+				int ssid = 0;
+				sscanf(func_name+strlen("StageHasBeenSelectedBefore"), "%d", &ssid);
+				
+				IggyValueSetS32RS(ret, 0, 0, StageHasBeenSelectedBefore(ssid));					
+				return 1;				
+			}
+			
+			else if (strcmp(func_name, "GetPlayerAllies") == 0)
+			{
+				void *ret = IggyPlayerCallbackResultPath(iggy_obj);
+				if (!ret)
+				{
+					DPRINTF("IggyPlayerCallbackResultPath returned NULL\n");
+					return 0;
+				}
+				
+				const std::string allies = GetPlayerAllies();
+				IggyValueSetStringUTF8RS(ret, nullptr, nullptr, allies.c_str(), allies.length());			
+				return 1;
+			}
+			
+			else if (strstr(func_name, "GetMobName") == func_name)
+			{
+				void *ret = IggyPlayerCallbackResultPath(iggy_obj);
+				if (!ret)
+				{
+					DPRINTF("IggyPlayerCallbackResultPath returned NULL\n");
+					return 0;
+				}
+				
+				int idx = 0;
+				sscanf(func_name+strlen("GetMobName"), "%d", &idx);
+				
+				const std::string name = GetMobName(idx);
+				
+				IggyValueSetStringUTF8RS(ret, nullptr, nullptr, name.c_str(), name.length());			
+				return 1;	
+			}
+			else if (strstr(func_name, "TakeControlOfMob") == func_name)
+			{
+				int idx = 0;
+				sscanf(func_name+strlen("TakeControlOfMob"), "%d", &idx);
+				
+				TakeControlOfMob(idx);
+				return 1;
+			}
+			else if (strcmp(func_name, "IsToggleUIEnabled") == 0)
+			{
+				void *ret = IggyPlayerCallbackResultPath(iggy_obj);
+				if (!ret)
+				{
+					DPRINTF("IggyPlayerCallbackResultPath returned NULL\n");
+					return 0;
+				}
+				
+				IggyValueSetS32RS(ret, 0, 0, IsToggleUIEnabled());			
+				return 1;
+			}
+			*/
+			else if (strcmp(func_name, "HelloWorld") == 0)
+			{
+				void *ret = IggyPlayerCallbackResultPath(iggy_obj);
+				if (!ret)
+				{
+					DPRINTF("IggyPlayerCallbackResultPath returned NULL\n");
+					return 0;
+				}
+				
+				static const char *hello_world = "Hello world from the native side";			
+				IggyValueSetStringUTF8RS(ret, nullptr, nullptr, hello_world, strlen(hello_world));			
+				return 1;
+			}	
+					
+		}
+	}
+	
+	return ExternalAS3Callback(custom_arg, iggy_obj, pfunc_name);
 }
+
+PUBLIC void SetupExternalAS3Callback(ExternalAS3CallbackType orig)
+{
+	ExternalAS3Callback = orig;
+}
+
+typedef void (* SendToAS3Type)(void *, int32_t, const void *);
+SendToAS3Type SendToAS3;
+
 
 void iggy_trace_callback(void *, void *, const char *str, size_t)
 {
@@ -125,6 +379,17 @@ static void IggySetTraceCallbackUTF8Patched(void *, void *param)
 	
 	if (func)
 		func((void *)iggy_trace_callback, param);
+}
+static void IggySetExternalAS3FunctionCallbackUTF8Patched(void *, void *param)
+{
+	HMODULE iggy = GetModuleHandle("iggy_w32.dll");
+	if (!iggy)
+		return;
+	
+	IggyPlayerCallbackResultPathType func = (IggyPlayerCallbackResultPathType)GetProcAddress(iggy, "_IggySetAS3ExternalFunctionCallbackUTF8@8");
+	
+	if (func)
+		func((void *)SetupExternalAS3Callback);
 }
 
 extern "C"
@@ -400,59 +665,51 @@ DWORD WINAPI StartThread(LPVOID)
 	return 0;
 }
 
-void ApplyFullscreenPatch() {
-    HWND windowHandle = NULL;
-    int maxAttempts = 50;   // Retry for up to 10 seconds
-    int waitTime = 200;     // Wait time between attempts (200 ms)
+// Function to handle the second console for command input
+DWORD WINAPI CommandConsoleThread(LPVOID lpParam)
+{
+    AllocConsole();
+    freopen("CONIN$", "r", stdin); // Redirect stdin to the console
+    
+    // Example of reading commands
+    std::string command;
+    while (true)
+    {
+        std::getline(std::cin, command);
 
-    // Retry loop to wait for the game window to appear
-    while (maxAttempts > 0 && windowHandle == NULL) {
-        windowHandle = FindWindow(NULL, "DRAGON BALL XENOVERSE"); // Update with actual window title
-        if (windowHandle != NULL) {
-            DPRINTF("Game window found!\n");
-            break;
-        }
-        DPRINTF("Waiting for game window...\n");
-        Sleep(waitTime);   // Wait before retrying
-        maxAttempts--;
+        // Here you can process the command as needed
+        if (command == "Hello")
+			DPRINTF("Hello, World!\n");
+        else
+			DPRINTF("Command Entered %s\n", command.c_str());
     }
 
-    if (windowHandle == NULL) {
-        DPRINTF("Failed to find game window after retries.\n");
-        return;
-    }
-
-    // Get the device context for the window
-    HDC windowHDC = GetDC(windowHandle);
-    if (windowHDC == NULL) {
-        DPRINTF("Failed to get device context.\n");
-        return;
-    }
-
-    // Get the screen's resolution
-    int fullscreenWidth = GetDeviceCaps(windowHDC, DESKTOPHORZRES);
-    int fullscreenHeight = GetDeviceCaps(windowHDC, DESKTOPVERTRES);
-
-    // Release the DC after usage to avoid resource leaks
-    ReleaseDC(windowHandle, windowHDC);
-
-    // Apply the windowed fullscreen patch
-    if (!WindowedFullscreenPatch(windowHandle, fullscreenWidth, fullscreenHeight)) {
-        DPRINTF("Failed to apply windowed fullscreen patch.\n");
-    } else {
-        DPRINTF("Windowed FullScreen Patch applied successfully.\n");
-    }
+    FreeConsole();
+    return 0;
 }
 
 extern "C" BOOL EXPORT DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
 {
-    std::map<std::string, std::string> iniValues = readIniFile(INI_FILE);
+    HANDLE consoleHandle = nullptr;
+	// Allocate a console for the application
+	AllocConsole();
+
+	// Get handle to the console output
+	consoleHandle = GetStdHandle(STD_OUTPUT_HANDLE);
+	if (consoleHandle == INVALID_HANDLE_VALUE)
+	{
+		// Handle error, if needed
+		return 1;
+	}
+
+	// Redirect standard output to the console
+	freopen("CONOUT$", "w", stdout);
+	freopen("CONOUT$", "w", stderr);
 
     switch (fdwReason)
     {
     case DLL_PROCESS_ATTACH:
     {
-		HWND windowHandle = FindWindow(NULL, "DRAGON BALL XENOVERSE"); 
 
         if (InGameProcess())
         {
@@ -462,101 +719,45 @@ extern "C" BOOL EXPORT DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvRe
             if (!load_dll(false))
                 return FALSE;
 
-            // PATCHES THAT DON'T REQUIRE INI FILE GO HERE
             CheckVersion();
-            /////////////////////////////////////////////
+            CMSPatches(hProcess, moduleBaseAddress);
+            VersionStringPatch(hProcess, moduleBaseAddress);
+            BacBcmPatch(hProcess, moduleBaseAddress);
+            InfiniteTimerPatch(hProcess, moduleBaseAddress);
 
-            // PATCHES THAT REQUIRE INI FILE GO HERE
-            std::string keyToCheck = "Patches.CMS_Patches";
-            if (iniValues.find(keyToCheck) != iniValues.end() && iniValues[keyToCheck] == "True")
-            {
-                DPRINTF("CMS Patches are enabled.\n");
-                CMSPatches(hProcess, moduleBaseAddress);
-            }
-            else
-            {
-                DPRINTF("CMS Patches are not enabled or the key is not present.\n");
-            }
+			CpkFile *data, *data2, *datap1, *datap2, *datap3;
 
-            keyToCheck = "Patches.Version_String_Patch";
-            if (iniValues.find(keyToCheck) != iniValues.end() && iniValues[keyToCheck] == "True")
-            {
-                DPRINTF("Version String Patch is enabled.\n");
-                VersionStringPatch(hProcess, moduleBaseAddress);
-            }
-            else
-            {
-                DPRINTF("Version String Patch is not enabled or the key is not present.\n");
-            }
-            
-			keyToCheck = "Patches.BAC_BCM_Patch";
-            if (iniValues.find(keyToCheck) != iniValues.end() && iniValues[keyToCheck] == "True")
-            {
-                DPRINTF("BAC/BCM Patch is enabled.\n");
-                BacBcmPatch(hProcess, moduleBaseAddress);
-            }
-            else
-            {
-                DPRINTF("BAC/BCM Patch is not enabled or the key is not present.\n");
-            }
-			
-			keyToCheck = "Patches.Infinite_Timer_Patch";
-            if (iniValues.find(keyToCheck) != iniValues.end() && iniValues[keyToCheck] == "True")
-            {
-                DPRINTF("Infinite Timer Patch is enabled.\n");
-                InfiniteTimerPatch(hProcess, moduleBaseAddress);
-            }
-            else
-            {
-                DPRINTF("Infinite Timer Patch is not enabled or the key is not present.\n");
-            }
-			
-			
-            keyToCheck = "Patches.CPK_Patch";
-            if (iniValues.find(keyToCheck) != iniValues.end() && iniValues[keyToCheck] == "True")
-            {
-                DPRINTF("CPK Patch is enabled.\n");
-                CpkFile *data, *data2, *datap1, *datap2, *datap3;
+			if (get_cpk_tocs(&data, &data2, &datap1, &datap2, &datap3))
+			{
+				patch_toc(data);
+				patch_toc(data2);
+				patch_toc(datap1);
+				patch_toc(datap2);
+				patch_toc(datap3);
 
-                if (get_cpk_tocs(&data, &data2, &datap1, &datap2, &datap3))
-                {
-                    patch_toc(data);
-                    patch_toc(data2);
-                    patch_toc(datap1);
-                    patch_toc(datap2);
-                    patch_toc(datap3);
+				data->RevertEncryption(false);
+				data2->RevertEncryption(false);
+				datap1->RevertEncryption(false);
+				datap2->RevertEncryption(false);
+				datap3->RevertEncryption(false);
 
-                    data->RevertEncryption(false);
-                    data2->RevertEncryption(false);
-                    datap1->RevertEncryption(false);
-                    datap2->RevertEncryption(false);
-                    datap3->RevertEncryption(false);
+				patches();
 
-                    patches();
-
-                    delete data;
-                    delete data2;
-                    delete datap1;
-                    delete datap2;
-                    delete datap3;
-                }
-            }
-            else
-            {
-                DPRINTF("CPK Patch is not enabled or the key is not present.\n");
-            }
-
-			keyToCheck = "Patches.WindowedFullScreen_Patch";
-			if (iniValues.find(keyToCheck) != iniValues.end() && iniValues[keyToCheck] == "True") {
-				DPRINTF("Windowed FullScreen Patch is enabled.\n");
-
-				// Create a new thread to handle the windowed fullscreen patch asynchronously
-				std::thread fullscreenThread(ApplyFullscreenPatch);
-				fullscreenThread.detach();  // Detach the thread so it runs independently
-			} else {
-				DPRINTF("Windowed FullScreen Patch is not enabled or the key is not present.\n");
+				delete data;
+				delete data2;
+				delete datap1;
+				delete datap2;
+				delete datap3;
 			}
 
+            // Create a thread for the command console
+            HANDLE hThread = CreateThread(nullptr, 0, CommandConsoleThread, nullptr, 0, nullptr);
+            if (hThread == nullptr)
+            {
+                UPRINTF("Failed to create command console thread.\n");
+                return FALSE;
+            }
+            CloseHandle(hThread);
 
 			/////////////////////////////////////////////
             if (!PatchUtils::HookImport("KERNEL32.dll", "GetStartupInfoW", (void *)GetStartupInfoW_Patched))
@@ -572,6 +773,7 @@ extern "C" BOOL EXPORT DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvRe
     {
         if (!lpvReserved)
         {
+            FreeConsole();
             unload_dll();
         }
     }
