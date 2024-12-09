@@ -292,21 +292,43 @@ void *PatchUtils::FindImport(const char *import_mod, const char *import_func, co
     return nullptr;
 }
 
+
+// Funzione di supporto per generare messaggi di errore
+std::string GenerateErrorMessage(const char* context, const char* details) {
+    std::ostringstream oss;
+    oss << "[HookImport Error] Context: " << context << " - Details: " << details;
+    return oss.str();
+}
 bool PatchUtils::HookImport(const char *import_mod, const char *import_func, void *new_func, const char *mod, bool is_ordinal)
 {
-    void *addr = FindImport(import_mod, import_func, mod, is_ordinal);
-    if (!addr)
-        return false;
+    // Trova l'indirizzo dell'import
+    void *addr = PatchUtils::FindImport(import_mod, import_func, mod, is_ordinal);
+    if (!addr) {
+        throw std::runtime_error(GenerateErrorMessage(
+            "FindImport",
+            (const char)("Failed to locate import '") + *(import_func ? import_func : "Unknown") +
+            "' in module '" + *(mod ? mod : "Unknown") +  (const char)"'."
+        ));
+    }
 
-#ifdef CPU_X86_64
-    Write64(addr, (uint64_t)new_func);
-#else
-    Write32(addr, (uint32_t)new_func);
-#endif
+    // Protezione memoria ed effettivo hook
+    try {
+        #ifdef CPU_X86_64
+            // Scrivi l'indirizzo della nuova funzione per piattaforme a 64 bit
+            PatchUtils::Write64(addr, (uint64_t)new_func);
+        #else
+            // Scrivi l'indirizzo della nuova funzione per piattaforme a 32 bit
+            PatchUtils::Write32(addr, (uint32_t)new_func);
+        #endif
+    } catch (const std::exception& e) {
+        throw std::runtime_error(GenerateErrorMessage(
+            "Memory Write",
+            (const char*)("Failed to write new function address to target. Reason: ") + *e.what()
+        ));
+    }
 
     return true;
 }
-
 bool PatchUtils::Unhook(void *address)
 {
     return (MH_DisableHook(address) == MH_OK);

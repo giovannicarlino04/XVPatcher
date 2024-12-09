@@ -90,11 +90,29 @@ static void IggyGenericSetTextureFromResourcePatched(int param_1, unsigned short
     IggyGenericSetTextureFromResourceType func = (IggyGenericSetTextureFromResourceType)GetProcAddress(iggy, "_IggyGenericSetTextureFromResource@12");
 
     if (func) {
-        func(param_1, param_2, 0xFF);
+        func(param_1, param_2, param_3);
     } else {
         UPRINTF("Failed to find IggyGenericSetTextureFromResource@12 function.\n");
     }
 }
+static void IggyUseExplorerPatched (int param_1, int param_2)
+{
+    HMODULE iggy = GetModuleHandle("iggy_w32.dll");
+    if (!iggy)
+		return;
+	
+
+	IggyUseExplorerType func = (IggyUseExplorerType)GetProcAddress(iggy, " _IggyUseExplorer@8");
+	if (!func) {
+		UPRINTF("Failed to find IggyUseExplorer@8 in iggy_w32.dll.\n");
+		return;
+	}
+	
+    if (func) {
+        func(param_1, param_2);
+    }
+}
+//////////////////////////////////////
 
 static void IggySetTraceCallbackUTF8Patched(void *, void *param)
 {
@@ -368,14 +386,7 @@ VOID WINAPI GetStartupInfoW_Patched(LPSTARTUPINFOW lpStartupInfo)
 			{
 				UPRINTF("Failed to hook import of _IggySetWarningCallback@8.\n");						
 			}	            
-			if (!PatchUtils::HookImport("iggy_w32.dll", "_IggyForceBitmapSmoothing@4", (void *)IggyForceBitmapSmoothingPatched))
-			{
-				UPRINTF("Failed to hook import of _IggyGenericSetTextureFromResource@12.\n");						
-			}	
-						if (!PatchUtils::HookImport("iggy_w32.dll", "_IggyGenericSetTextureFromResource@12", (void *)IggyGenericSetTextureFromResourcePatched))
-			{
-				UPRINTF("Failed to hook import of _IggyGenericSetTextureFromResource@12.\n");						
-			}	
+
 		}
 		
 	}	
@@ -401,8 +412,9 @@ DWORD WINAPI CommandConsoleThread(LPVOID lpParam)
         std::getline(std::cin, command);
 
         // Here you can process the command as needed
-        if (command == "Hello")
-			DPRINTF("Hello, World!\n");
+        if (command == "IGGYDisableFilters"){
+
+		}
         else
 			DPRINTF("Command Entered %s\n", command.c_str());
     }
