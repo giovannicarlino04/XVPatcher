@@ -60,6 +60,42 @@ static void IggySetWarningCallbackPatched(void *, void *param)
 		func((void *)iggy_warning_callback, param);
 }
 
+// The following functions are  more like a template setup for other similar functions
+// To understand how iggy works
+
+
+// This function is always set to true in Xenoverse, setting it to false just
+// removes smoothing from the bitmaps
+static void IggyForceBitmapSmoothingPatched(bool bitmapSmoothingBool)
+{
+    HMODULE iggy = GetModuleHandle("iggy_w32.dll");
+    if (!iggy)
+        return;
+
+    IggyForceBitmapSmoothingType func = (IggyForceBitmapSmoothingType)GetProcAddress(iggy, "_IggyForceBitmapSmoothing@4");
+
+    if (func) {
+        func(true);
+    } else {
+        UPRINTF("Failed to find _IggyForceBitmapSmoothing@4 function.\n");
+    }
+}
+
+static void IggyGenericSetTextureFromResourcePatched(int param_1, unsigned short param_2, int param_3)
+{
+    HMODULE iggy = GetModuleHandle("iggy_w32.dll");
+    if (!iggy)
+        return;
+
+    IggyGenericSetTextureFromResourceType func = (IggyGenericSetTextureFromResourceType)GetProcAddress(iggy, "_IggyGenericSetTextureFromResource@12");
+
+    if (func) {
+        func(param_1, param_2, 0xFF);
+    } else {
+        UPRINTF("Failed to find IggyGenericSetTextureFromResource@12 function.\n");
+    }
+}
+
 static void IggySetTraceCallbackUTF8Patched(void *, void *param)
 {
 	HMODULE iggy = GetModuleHandle("iggy_w32.dll");
@@ -331,7 +367,15 @@ VOID WINAPI GetStartupInfoW_Patched(LPSTARTUPINFOW lpStartupInfo)
             if (!PatchUtils::HookImport("iggy_w32.dll", "_IggySetWarningCallback@8", (void *)IggySetWarningCallbackPatched))
 			{
 				UPRINTF("Failed to hook import of _IggySetWarningCallback@8.\n");						
-			}				
+			}	            
+			if (!PatchUtils::HookImport("iggy_w32.dll", "_IggyForceBitmapSmoothing@4", (void *)IggyForceBitmapSmoothingPatched))
+			{
+				UPRINTF("Failed to hook import of _IggyGenericSetTextureFromResource@12.\n");						
+			}	
+						if (!PatchUtils::HookImport("iggy_w32.dll", "_IggyGenericSetTextureFromResource@12", (void *)IggyGenericSetTextureFromResourcePatched))
+			{
+				UPRINTF("Failed to hook import of _IggyGenericSetTextureFromResource@12.\n");						
+			}	
 		}
 		
 	}	

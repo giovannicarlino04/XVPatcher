@@ -22,5 +22,7 @@
 
 typedef void (* IGGYSetTraceCallbackType)(void *callback, void *param);
 typedef void (* IGGYSetWarningCallbackType)(void *callback, void *param);
+typedef void (* IggyForceBitmapSmoothingType)(bool bitmapSmoothingBool);
+typedef void (* IggyGenericSetTextureFromResourceType)(int param_1, unsigned short param_2, int param_3);
 extern void iggy_trace_callback(void *param, void *unk, const char *str, size_t len);
 #endif

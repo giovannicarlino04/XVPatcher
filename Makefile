@@ -2,6 +2,7 @@ CC := i686-w64-mingw32-gcc
 CXX := i686-w64-mingw32-g++
 
 OUTPUT := xinput1_3.dll
+OUTPUT_COPY := "D:\Steam\steamapps\common\DB Xenoverse"
 
 OBJS := main.o debug.o CpkFile.o CpkDef.hpp BaseFile.o patch.o patches.hpp PatchUtils.o Utils.o MemoryStream.o FixedMemoryStream.o Stream.o IggyFile.o
 OBJS += ./crypto/sha1.o ./crypto/md5.o ./crypto/rijndael.o
@@ -21,3 +22,4 @@ clean:
 
 $(OUTPUT): $(OBJS)
 	$(CXX) $(CFLAGS) $(LDFLAGS) -o $@ $^ $(LIBS)
+	cp $(OUTPUT) $(OUTPUT_COPY)
