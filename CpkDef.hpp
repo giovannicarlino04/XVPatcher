@@ -2,7 +2,7 @@
 #define CPKDEF_HPP
 
 #include <cstdio>
-#include "XVPatcher.h"
+#include "xvpatcher.h"
 #include "CpkFile.h"
 #include "debug.h"
 #include "patch.h"

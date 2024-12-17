@@ -23,7 +23,7 @@
 #include "PatchUtils.h"
 #include "IggyFile.h"
 #include "CpkDef.hpp"
-#include "XVPatcher.h"
+#include "xvpatcher.h"
 
 static HMODULE patched_dll;
 static Mutex mutex;
