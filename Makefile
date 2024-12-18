@@ -23,4 +23,4 @@ clean:
 
 $(OUTPUT): $(OBJS)
 	$(CXX) $(CFLAGS) $(LDFLAGS) -o $@ $^ $(LIBS)
-	cp $(OUTPUT) $(OUTPUT_COPY_UNIX)
+	cp $(OUTPUT) $(OUTPUT_COPY_WINDOWS)
