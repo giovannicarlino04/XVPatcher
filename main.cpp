@@ -14,7 +14,7 @@
 #include <thread>
 
 #include "patch.h"
-#include "patches.hpp"
+#include "patches.h"
 #include "debug.h"
 #include "symbols.h"
 #include "CpkFile.h"
@@ -22,7 +22,7 @@
 #include "Utils.h"
 #include "PatchUtils.h"
 #include "IggyFile.h"
-#include "CpkDef.hpp"
+#include "CpkDef.h"
 #include "xvpatcher.h"
 
 static HMODULE patched_dll;
@@ -60,60 +60,6 @@ static void IggySetWarningCallbackPatched(void *, void *param)
 		func((void *)iggy_warning_callback, param);
 }
 
-// The following functions are  more like a template setup for other similar functions
-// To understand how iggy works
-
-
-// This function is always set to true in Xenoverse, setting it to false just
-// removes smoothing from the bitmaps
-static void IggyForceBitmapSmoothingPatched(bool bitmapSmoothingBool)
-{
-    HMODULE iggy = GetModuleHandle("iggy_w32.dll");
-    if (!iggy)
-        return;
-
-    IggyForceBitmapSmoothingType func = (IggyForceBitmapSmoothingType)GetProcAddress(iggy, "_IggyForceBitmapSmoothing@4");
-
-    if (func) {
-        func(true);
-    } else {
-        UPRINTF("Failed to find _IggyForceBitmapSmoothing@4 function.\n");
-    }
-}
-
-static void IggyGenericSetTextureFromResourcePatched(int param_1, unsigned short param_2, int param_3)
-{
-    HMODULE iggy = GetModuleHandle("iggy_w32.dll");
-    if (!iggy)
-        return;
-
-    IggyGenericSetTextureFromResourceType func = (IggyGenericSetTextureFromResourceType)GetProcAddress(iggy, "_IggyGenericSetTextureFromResource@12");
-
-    if (func) {
-        func(param_1, param_2, param_3);
-    } else {
-        UPRINTF("Failed to find IggyGenericSetTextureFromResource@12 function.\n");
-    }
-}
-static void IggyUseExplorerPatched (int param_1, int param_2)
-{
-    HMODULE iggy = GetModuleHandle("iggy_w32.dll");
-    if (!iggy)
-		return;
-	
-
-	IggyUseExplorerType func = (IggyUseExplorerType)GetProcAddress(iggy, " _IggyUseExplorer@8");
-	if (!func) {
-		UPRINTF("Failed to find IggyUseExplorer@8 in iggy_w32.dll.\n");
-		return;
-	}
-	
-    if (func) {
-        func(param_1, param_2);
-    }
-}
-//////////////////////////////////////
-
 static void IggySetTraceCallbackUTF8Patched(void *, void *param)
 {
 	HMODULE iggy = GetModuleHandle("iggy_w32.dll");
@@ -125,6 +71,7 @@ static void IggySetTraceCallbackUTF8Patched(void *, void *param)
 	if (func)
 		func((void *)iggy_trace_callback, param);
 }
+
 extern "C"
 {
 	PUBLIC DWORD XInputGetState()
@@ -264,7 +211,6 @@ static bool load_dll(bool critical)
 	for (auto &export_name : exports)
 	{
 		uint64_t ordinal = (uint64_t)export_name;
-		
 		uint8_t *orig_func = (uint8_t *)GetProcAddress(patched_dll, export_name);
 		
 		if (!orig_func)
@@ -323,11 +269,10 @@ static void unload_dll()
 		patched_dll = nullptr;
 	}
 }
-// Function to get the last error message
 std::string GetLastErrorAsString() {
     DWORD errorMessageID = GetLastError();
     if (errorMessageID == 0) {
-        return std::string(); // No error message
+        return std::string(); 
     }
 
     LPVOID messageBuffer = nullptr;
@@ -341,16 +286,14 @@ std::string GetLastErrorAsString() {
 
     return message;
 }
-
 uintptr_t GetModuleBaseAddress(const wchar_t* modName) {
     HMODULE hModule = GetModuleHandleW(modName);
     if (hModule != NULL) {
-        return (uintptr_t)hModule; // Return the base address of the module
+        return (uintptr_t)hModule; 
     } else {
-        return 0; // Module not found
+        return 0; 
     }
 }
-
 void CheckVersion(){
 	LPCWSTR my_dll_name = L"xinput1_3.dll";
 	DPRINTF("XVPATCHER VERSION " XVPATCHER_VERSION ". Exe base = %p. My Dll base = %p. My dll name: %s\n", GetModuleHandle(NULL), GetModuleHandleW(my_dll_name), my_dll_name);	
@@ -364,12 +307,10 @@ void CheckVersion(){
 		exit(-1);
 	}
 }
-
 VOID WINAPI GetStartupInfoW_Patched(LPSTARTUPINFOW lpStartupInfo)
 {
 	static bool started = false;
 	
-	// This function is only called once by the game but... just in case
 	if (!started)
 	{	
 		if (!load_dll(false))
@@ -399,22 +340,17 @@ DWORD WINAPI StartThread(LPVOID)
 	return 0;
 }
 
-
 extern "C" BOOL EXPORT DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
 {
     HANDLE consoleHandle = nullptr;
-	// Allocate a console for the application
 	AllocConsole();
 
-	// Get handle to the console output
 	consoleHandle = GetStdHandle(STD_OUTPUT_HANDLE);
 	if (consoleHandle == INVALID_HANDLE_VALUE)
 	{
-		// Handle error, if needed
 		return 1;
 	}
 
-	// Redirect standard output to the console
 	freopen("CONOUT$", "w", stdout);
 	freopen("CONOUT$", "w", stderr);
 
@@ -463,7 +399,6 @@ extern "C" BOOL EXPORT DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvRe
 			}
 
 
-			/////////////////////////////////////////////
             if (!PatchUtils::HookImport("KERNEL32.dll", "GetStartupInfoW", (void *)GetStartupInfoW_Patched))
             {
                 UPRINTF("GetStartupInfoW hook failed.\n");
