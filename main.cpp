@@ -29,6 +29,7 @@ static HMODULE patched_dll;
 static Mutex mutex;
 HMODULE myself;
 std::string myself_path;
+wchar_t *version;
 
 void iggy_trace_callback(void *, void *, const char *str, size_t)
 {
@@ -351,11 +352,12 @@ uintptr_t GetModuleBaseAddress(const wchar_t* modName) {
     }
 }
 
-void CheckVersion(){
+bool CheckVersion(){
 	LPCWSTR my_dll_name = L"xinput1_3.dll";
-	DPRINTF("XVPATCHER VERSION " XVPATCHER_VERSION ". Exe base = %p. My Dll base = %p. My dll name: %s\n", GetModuleHandle(NULL), GetModuleHandleW(my_dll_name), my_dll_name);	
+	DPRINTF("XVPATCHER VERSION " XVPATCHER_VERSION ". Exe base = %p. My Dll base = %p. My dll name: %ls\n", GetModuleHandle(NULL), GetModuleHandleW(my_dll_name), my_dll_name);	
 	
-	float version = Utils::GetExeVersion(myself_path+EXE_PATH);
+	/*float version = Utils::GetExeVersion(myself_path+EXE_PATH);
+
 	DPRINTF("Running on game version %.3f\n", version);
 	
 	if (version != 0.0 && version < (MINIMUM_GAME_VERSION - 0.00001))
@@ -363,6 +365,23 @@ void CheckVersion(){
 		UPRINTF("This game version (%.3f) is not compatible with this version of the patcher.\nMin version required is: %.3f\n", version, MINIMUM_GAME_VERSION);
 		exit(-1);
 	}
+
+	This doesn't work, they forgot to update the exe version HAHAHAHA
+
+	*/
+	
+	if(!version){
+		UPRINTF("Exe version not found, how tf did it get lost in the first place idk\n");
+		return false;
+	}
+	
+	DPRINTF("Running on game version %ls\n", version);
+
+	if(wcscmp(version,	MINIMUM_GAME_VERSION) != 0){
+		UPRINTF("Unable to patch game version %ls, please update your game\n", version);
+		return false;
+	}
+	return true;
 }
 
 VOID WINAPI GetStartupInfoW_Patched(LPSTARTUPINFOW lpStartupInfo)
@@ -380,12 +399,13 @@ VOID WINAPI GetStartupInfoW_Patched(LPSTARTUPINFOW lpStartupInfo)
 		{
 			if (!PatchUtils::HookImport("iggy_w32.dll", "_IggySetTraceCallbackUTF8@8", (void *)IggySetTraceCallbackUTF8Patched))
 			{
-				DPRINTF("Failed to hook import of _IggySetTraceCallbackUTF8@8.\n");						
+				UPRINTF("Failed to hook import of _IggySetTraceCallbackUTF8@8.\n");						
 			}
             if (!PatchUtils::HookImport("iggy_w32.dll", "_IggySetWarningCallback@8", (void *)IggySetWarningCallbackPatched))
 			{
 				UPRINTF("Failed to hook import of _IggySetWarningCallback@8.\n");						
-			}	            
+			}	
+ 
 
 		}
 		
@@ -402,19 +422,16 @@ DWORD WINAPI StartThread(LPVOID)
 
 extern "C" BOOL EXPORT DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
 {
+       
     HANDLE consoleHandle = nullptr;
-	// Allocate a console for the application
 	AllocConsole();
 
-	// Get handle to the console output
 	consoleHandle = GetStdHandle(STD_OUTPUT_HANDLE);
 	if (consoleHandle == INVALID_HANDLE_VALUE)
 	{
-		// Handle error, if needed
 		return 1;
 	}
 
-	// Redirect standard output to the console
 	freopen("CONOUT$", "w", stdout);
 	freopen("CONOUT$", "w", stderr);
 
@@ -431,12 +448,18 @@ extern "C" BOOL EXPORT DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvRe
             if (!load_dll(false))
                 return FALSE;
 
-            CheckVersion();
+            version = RetrieveVersionString(hProcess, moduleBaseAddress);
+			if(version){
+				CheckVersion();
+				free(version);
+			}
+			else{
+				return TRUE;
+			}
             CMSPatches(hProcess, moduleBaseAddress);
             VersionStringPatch(hProcess, moduleBaseAddress);
             BacBcmPatch(hProcess, moduleBaseAddress);
             InfiniteTimerPatch(hProcess, moduleBaseAddress);
-
 			CpkFile *data, *data2, *datap1, *datap2, *datap3;
 
 			if (get_cpk_tocs(&data, &data2, &datap1, &datap2, &datap3))
@@ -468,7 +491,9 @@ extern "C" BOOL EXPORT DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvRe
             {
                 UPRINTF("GetStartupInfoW hook failed.\n");
                 return TRUE;
-            }            
+            }   
+    
+
         }
         break;
     }

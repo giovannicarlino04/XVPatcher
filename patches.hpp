@@ -5,13 +5,12 @@
 #include <windows.h>
 
 bool CMSPatches(HANDLE hProcess, uintptr_t moduleBaseAddress) {
-   	const char* newBytes1 = "\x7F\x7C\x09\xB8\x00";  // 64 7C 09 B8 01
-    const char* newBytes2 = "\x70\x7D\x6E\xC7\x45";  // 64 7D 6E C7 45
+   	const char* newBytes1 = "\x90\x90\x90\x90\x90";  // 64 7C 09 B8 01 to "\x7F\x7C\x09\xB8\x00"
+    const char* newBytes2 = "\x90\x90\x90\x90\x90";  // 64 7D 6E C7 45 to "\x70\x7D\x6E\xC7\x45"
 
 	LPVOID address1 = nullptr;
     LPVOID address2 = nullptr;
     SIZE_T numberOfBytesWritten;
-    DWORD oldProtect;
 
     if (moduleBaseAddress != 0) {
         address1 = (LPVOID)(moduleBaseAddress + 0x15EE39);
@@ -48,6 +47,38 @@ bool CMSPatches(HANDLE hProcess, uintptr_t moduleBaseAddress) {
     }
 	return 0;
 }
+wchar_t* RetrieveVersionString(HANDLE hProcess, uintptr_t moduleBaseAddress) {
+    const wchar_t* versionString = L"ver.1.08.00";
+    const size_t patchsize = (wcslen(versionString) + 1) * sizeof(wchar_t); // Include null terminator
+    wchar_t buf[patchsize / sizeof(wchar_t)] = {}; // Buffer per contenere i dati letti
+
+    LPVOID address1 = nullptr;
+    SIZE_T numberOfBytesRead;
+    
+    if (moduleBaseAddress != 0) {
+        address1 = (LPVOID)(moduleBaseAddress + 0x11ACFB4);
+    }
+
+    if (address1 == nullptr) {
+        UPRINTF("Failed to calculate the address.\n");
+        return nullptr;
+    }
+
+    if (!ReadProcessMemory(hProcess, address1, buf, patchsize, &numberOfBytesRead)) {
+        UPRINTF("Failed to read the version bytes.\n");
+        return nullptr;
+    }
+
+    DPRINTF("Successfully checked Version String: %ls\n", buf);
+    
+    wchar_t* result = (wchar_t*)malloc(patchsize);
+    if (result) {
+        wcscpy(result, buf);
+    }
+
+    return result; // L'utente deve deallocare con `free()`
+}
+
 
 bool VersionStringPatch(HANDLE hProcess, uintptr_t moduleBaseAddress) {
 	const BYTE patchsize = wcslen(L"\x76\x65\x72\x2e\x31\x2e\x30\x38\x2e\x30\x30") * sizeof(wchar_t);

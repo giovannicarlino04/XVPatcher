@@ -15,8 +15,8 @@
 #define DATAP3_CPK		"datap3.cpk"
 
 #define XVPATCHER_VERSION "1.06"
+#define MINIMUM_GAME_VERSION	L"ver.1.08.00"
 
-#define MINIMUM_GAME_VERSION	1.00f
 #define INI_FILE "./XVPatcher/XVPatcher.ini"
 
 
