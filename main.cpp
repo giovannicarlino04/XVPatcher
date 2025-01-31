@@ -456,6 +456,7 @@ extern "C" BOOL EXPORT DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvRe
 			else{
 				return TRUE;
 			}
+
             CMSPatches(hProcess, moduleBaseAddress);
             VersionStringPatch(hProcess, moduleBaseAddress);
             BacBcmPatch(hProcess, moduleBaseAddress);

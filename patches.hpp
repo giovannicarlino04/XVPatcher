@@ -5,8 +5,8 @@
 #include <windows.h>
 
 bool CMSPatches(HANDLE hProcess, uintptr_t moduleBaseAddress) {
-   	const char* newBytes1 = "\x90\x90\x90\x90\x90";  // 64 7C 09 B8 01 to "\x7F\x7C\x09\xB8\x00"
-    const char* newBytes2 = "\x90\x90\x90\x90\x90";  // 64 7D 6E C7 45 to "\x70\x7D\x6E\xC7\x45"
+   	const char* newBytes1 = "\x7F\x7C\x09\xB8\x00";  // 64 7C 09 B8 01 to "\x7F\x7C\x09\xB8\x00"
+    const char* newBytes2 = "\x70\x7D\x6E\xC7\x45";  // 64 7D 6E C7 45 to "\x70\x7D\x6E\xC7\x45"
 
 	LPVOID address1 = nullptr;
     LPVOID address2 = nullptr;
