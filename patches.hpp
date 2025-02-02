@@ -2,7 +2,8 @@
 #define PATCHES_HPP
 
 #include "debug.h"
-#include <windows.h>
+#include "xvpatcher.h"
+#include "Utils.h"
 
 bool CMSPatches(HANDLE hProcess, uintptr_t moduleBaseAddress) {
    	const char* newBytes1 = "\x7F\x7C\x09\xB8\x00";  // 64 7C 09 B8 01 to "\x7F\x7C\x09\xB8\x00"

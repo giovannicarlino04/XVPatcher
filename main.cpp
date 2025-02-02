@@ -24,6 +24,7 @@
 #include "IggyFile.h"
 #include "CpkDef.hpp"
 #include "xvpatcher.h"
+#include <MinHook.h>
 
 static HMODULE patched_dll;
 static Mutex mutex;
@@ -31,12 +32,145 @@ HMODULE myself;
 std::string myself_path;
 wchar_t *version;
 
+typedef int (* ExternalAS3CallbackType)(void *custom_arg, void *iggy_obj, const char **pfunc_name);
+typedef void *(* IggyPlayerCallbackResultPathType)(void *unk0);
+typedef void (* IggyValueSetStringUTF8RSType)(void *arg1, void *unk2, void *unk3, const char *str, size_t length);
+typedef void (* IggyValueSetS32RSType)(void *arg1, uint32_t unk2, uint32_t unk3, uint32_t value);
+
+static IggyPlayerCallbackResultPathType IggyPlayerCallbackResultPath;
+static IggyValueSetStringUTF8RSType IggyValueSetStringUTF8RS;
+static IggyValueSetS32RSType IggyValueSetS32RS;
+static ExternalAS3CallbackType ExternalAS3Callback;
+
+std::string x2s_raw;
+
+uintptr_t GetModuleBaseAddress(const wchar_t* modName) {
+    HMODULE hModule = GetModuleHandleW(modName);
+    if (hModule != NULL) {
+        return (uintptr_t)hModule; // Return the base address of the module
+    } else {
+        return 0; // Module not found
+    }
+}
+
+
+static void ReadSlotsFile()
+{
+	static time_t mtime = 0;
+	const std::string path = SLOTS_FILE;
+	time_t current_mtime;
+	
+	if (Utils::GetFileDate(path, &current_mtime) && current_mtime != mtime)
+	{
+		Utils::ReadTextFile(path, x2s_raw, false);
+		mtime = current_mtime;
+	}
+}
+
+const std::string &GetSlotsData()
+{
+	ReadSlotsFile();
+	return x2s_raw;
+}
+int ExternalAS3CallbackPatched(void *custom_arg, void *iggy_obj, const char **pfunc_name)
+{
+    DPRINTF("custom_arg: %p, iggy_obj: %p, pfunc_name: %p (%s)\n", 
+            custom_arg, iggy_obj, pfunc_name, (pfunc_name && *pfunc_name) ? *pfunc_name : "(null)");
+    DPRINTF("ExternalAS3Callback - %p\n", ExternalAS3Callback);
+    DPRINTF("ExternalAS3CallbackPatched - %p\n", ExternalAS3CallbackPatched);
+    
+	if (!IggyPlayerCallbackResultPath)
+	{
+		HMODULE iggy = GetModuleHandle("iggy_w32.dll");
+		
+		IggyPlayerCallbackResultPath = (IggyPlayerCallbackResultPathType)GetProcAddress(iggy, "_IggyPlayerCallbackResultPath@4");
+		IggyValueSetStringUTF8RS = (IggyValueSetStringUTF8RSType)GetProcAddress(iggy, "_IggyValueSetStringUTF8RS@20");
+		IggyValueSetS32RS = (IggyValueSetS32RSType)GetProcAddress(iggy, "_IggyValueSetS32RS@1");
+	}
+
+    if (pfunc_name && *pfunc_name)
+    {
+        const char *func_name = *pfunc_name;
+
+        if (strlen(func_name) > 3 && *(uint32_t *)func_name == XV_PATCHER_TAG)
+        {
+            DPRINTF("Calling %s\n", func_name);
+            
+            func_name += 3;
+
+            if (strcmp(func_name, "GetSlotsData") == 0)
+            {	
+				void *ret = IggyPlayerCallbackResultPath(iggy_obj);
+				if (!ret)
+				{
+					DPRINTF("IggyPlayerCallbackResultPath returned NULL\n");
+					return 0;
+				}     
+                const std::string &slots = GetSlotsData();
+                IggyValueSetStringUTF8RS(ret, nullptr, nullptr, slots.c_str(), slots.length());            
+                return 1;
+            }
+        }
+    }
+    return ExternalAS3Callback(custom_arg, iggy_obj, pfunc_name);
+}
+
+void HookExternalAS3Callback()
+{
+    // Ottieni l'indirizzo base del modulo
+    HMODULE mba = GetModuleHandle("DBXV.exe");
+    if (!mba)
+    {
+        DPRINTF("Failed to get module handle\n");
+        return;
+    }
+    HANDLE hProcess = GetCurrentProcess();
+
+    // L'indirizzo della funzione patchata
+    void* patchedFunction = (void*)&ExternalAS3CallbackPatched;
+
+    // Ottieni l'indirizzo della funzione da patchare
+    void* patchAddress = (void*)((BYTE*)mba + 0x34A03B);
+	ExternalAS3Callback = (void*)((BYTE*)mba + 0x34B1D0); //0x34B1D0
+
+    // Cambia la protezione della memoria per permettere la scrittura
+    DWORD oldProtect;
+    if (!VirtualProtectEx(hProcess, patchAddress, 4, PAGE_EXECUTE_READWRITE, &oldProtect))
+    {
+        DPRINTF("Failed to change memory protection\n");
+        return;
+    }
+	DPRINTF("ADDR = %p\n", patchAddress);
+	DPRINTF("CLBK = %p\n", ExternalAS3Callback);
+
+    // Scrivi la nuova istruzione (PUSH l'indirizzo della funzione patchata)
+    BYTE patch[5];
+    patch[0] = 0x68; // Codice opcode per PUSH
+    *(DWORD*)&patch[1] = (DWORD)ExternalAS3CallbackPatched; // Indirizzo della funzione patchata
+
+    // Scrivi in memoria
+    if (!WriteProcessMemory(hProcess, patchAddress, patch, sizeof(patch), NULL))
+    {
+        DPRINTF("Failed to write memory\n");
+        return;
+    }
+
+    // Ripristina la protezione della memoria
+    if (!VirtualProtectEx(hProcess, patchAddress, 5, oldProtect, &oldProtect))
+    {
+        DPRINTF("Failed to restore memory protection\n");
+        return;
+    }
+
+    DPRINTF("ExternalAS3Callback successfully patched!\n");
+}
 void iggy_trace_callback(void *, void *, const char *str, size_t)
 {
 	if (str && strcmp(str, "\n") == 0)
 		return;
 	
 	DPRINTF("IGGY: %s\n", str);
+
 }
 void iggy_warning_callback(void *, void *, uint32_t, const char *str)
 {
@@ -59,6 +193,7 @@ static void IggySetWarningCallbackPatched(void *, void *param)
 	
 	if (func)
 		func((void *)iggy_warning_callback, param);
+
 }
 
 // The following functions are  more like a template setup for other similar functions
@@ -238,6 +373,7 @@ static bool load_dll(bool critical)
 	myself_path = Utils::NormalizePath(mod_path);
 	myself_path = myself_path.substr(0, myself_path.rfind('/')+1);	
 	DPRINTF("Myself path = %s\n", myself_path.c_str());
+	DPRINTF("Slots path = %s\n", SLOTS_FILE);
 	
 	if (Utils::FileExists(myself_path+"xinput_other.dll"))
 	{
@@ -343,15 +479,6 @@ std::string GetLastErrorAsString() {
     return message;
 }
 
-uintptr_t GetModuleBaseAddress(const wchar_t* modName) {
-    HMODULE hModule = GetModuleHandleW(modName);
-    if (hModule != NULL) {
-        return (uintptr_t)hModule; // Return the base address of the module
-    } else {
-        return 0; // Module not found
-    }
-}
-
 bool CheckVersion(){
 	LPCWSTR my_dll_name = L"xinput1_3.dll";
 	DPRINTF("XVPATCHER VERSION " XVPATCHER_VERSION ". Exe base = %p. My Dll base = %p. My dll name: %ls\n", GetModuleHandle(NULL), GetModuleHandleW(my_dll_name), my_dll_name);	
@@ -384,34 +511,34 @@ bool CheckVersion(){
 	return true;
 }
 
+
 VOID WINAPI GetStartupInfoW_Patched(LPSTARTUPINFOW lpStartupInfo)
 {
-	static bool started = false;
-	
-	// This function is only called once by the game but... just in case
-	if (!started)
-	{	
-		if (!load_dll(false))
-			exit(-1);
+    static bool started = false;
 
-		bool iggy_debug = true;
-		if (iggy_debug)
-		{
-			if (!PatchUtils::HookImport("iggy_w32.dll", "_IggySetTraceCallbackUTF8@8", (void *)IggySetTraceCallbackUTF8Patched))
-			{
-				UPRINTF("Failed to hook import of _IggySetTraceCallbackUTF8@8.\n");						
-			}
+    if (!started)
+    {   
+        started = true; 
+
+        if (!load_dll(false))
+            exit(-1);
+
+        bool iggy_debug = true;
+        if (iggy_debug)
+        {
+            if (!PatchUtils::HookImport("iggy_w32.dll", "_IggySetTraceCallbackUTF8@8", (void *)IggySetTraceCallbackUTF8Patched))
+            {
+                UPRINTF("Failed to hook import of _IggySetTraceCallbackUTF8@8.\n");                        
+            }
             if (!PatchUtils::HookImport("iggy_w32.dll", "_IggySetWarningCallback@8", (void *)IggySetWarningCallbackPatched))
-			{
-				UPRINTF("Failed to hook import of _IggySetWarningCallback@8.\n");						
-			}	
- 
-
-		}
-		
-	}	
-	GetStartupInfoW(lpStartupInfo);
+            {
+                UPRINTF("Failed to hook import of _IggySetWarningCallback@8.\n");                        
+            }   
+        }
+    }   
+    GetStartupInfoW(lpStartupInfo);
 }
+
 
 DWORD WINAPI StartThread(LPVOID)
 {
@@ -461,8 +588,9 @@ extern "C" BOOL EXPORT DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvRe
             VersionStringPatch(hProcess, moduleBaseAddress);
             BacBcmPatch(hProcess, moduleBaseAddress);
             InfiniteTimerPatch(hProcess, moduleBaseAddress);
+			HookExternalAS3Callback();
 			CpkFile *data, *data2, *datap1, *datap2, *datap3;
-
+			
 			if (get_cpk_tocs(&data, &data2, &datap1, &datap2, &datap3))
 			{
 				patch_toc(data);

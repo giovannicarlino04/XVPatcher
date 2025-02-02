@@ -1,6 +1,14 @@
 #ifndef XVPATCHER_H
 #define XVPATCHER_H
 
+#include <windows.h>
+#include <windows.h>
+#include <d3d9.h>
+#include <d3dcommon.h>
+#include <unordered_set>
+#include <cstdint>
+
+
 #define EXPORT WINAPI __declspec(dllexport)
 #define PUBLIC EXPORT
 
@@ -14,10 +22,20 @@
 #define DATAP2_CPK		"datap2.cpk"
 #define DATAP3_CPK		"datap3.cpk"
 
+#define SLOTS_FILE      "./data/XVP_SLOTS.xs"
+
 #define XVPATCHER_VERSION "1.06"
 #define MINIMUM_GAME_VERSION	L"ver.1.08.00"
 
-#define INI_FILE "./XVPatcher/XVPatcher.ini"
+#define XV_PATCHER_TAG 0x505658
+
+typedef HRESULT (* GetRenderTargetDataType)(IDirect3DDevice9 *pDevice, IDirect3DBaseTexture9 *pSrc, IDirect3DSurface9 *pDest);
+typedef IDirect3DBaseTexture9 *(* GetTextureBufferType)(void *);
+
+// Direct3D 9-specific texture saving function
+static GetRenderTargetDataType _GetRenderTargetData;
+static GetTextureBufferType GetTextureBuffer;
+
 
 
 typedef void (* IGGYSetTraceCallbackType)(void *callback, void *param);

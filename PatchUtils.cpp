@@ -245,8 +245,10 @@ bool PatchUtils::Hook(const char *mod, const char *func, void **orig, void *new_
 void *PatchUtils::FindImport(const char *import_mod, const char *import_func, const char *mod, bool is_ordinal)
 {
     uint8_t *mod_top = (uint8_t *)GetModuleHandleA(mod);
-    if (!mod_top)
+    if (!mod_top) {
+        std::cerr << "Failed to get module handle for: " << mod << std::endl;
         return nullptr;
+    }
 
     IMAGE_DOS_HEADER *dos_hdr = (IMAGE_DOS_HEADER *)mod_top;
     IMAGE_NT_HEADERS *nt_hdr = (IMAGE_NT_HEADERS *)(mod_top + dos_hdr->e_lfanew);
@@ -255,6 +257,7 @@ void *PatchUtils::FindImport(const char *import_mod, const char *import_func, co
     while (import_dir->Characteristics)
     {
         const char *name = (const char *)(mod_top + import_dir->Name);
+
 
         if (strcasecmp(name, import_mod) == 0)
         {
@@ -266,18 +269,18 @@ void *PatchUtils::FindImport(const char *import_mod, const char *import_func, co
                 if (!IMAGE_SNAP_BY_ORDINAL(thunk_data->u1.Ordinal))
                 {
                     if (!is_ordinal)
-					{
-						IMAGE_IMPORT_BY_NAME *import_info = (IMAGE_IMPORT_BY_NAME *)(mod_top + thunk_data->u1.AddressOfData);
+                    {
+                        IMAGE_IMPORT_BY_NAME *import_info = (IMAGE_IMPORT_BY_NAME *)(mod_top + thunk_data->u1.AddressOfData);
 
-						if (strcasecmp((char *)import_info->Name, import_func) == 0)
-							return iat;
-					}
+                        if (strcasecmp((char *)import_info->Name, import_func) == 0)
+                            return iat;
+                    }
                 }
-				else 
-				{
-					if (is_ordinal && ((uint32_t)thunk_data->u1.Ordinal == (uint32_t)(uintptr_t)import_func))
-						return iat;
-				}
+                else
+                {
+                    if (is_ordinal && ((uint32_t)thunk_data->u1.Ordinal == (uint32_t)(uintptr_t)import_func))
+                        return iat;
+                }
 
                 thunk_data++;
                 iat++;
@@ -294,11 +297,12 @@ void *PatchUtils::FindImport(const char *import_mod, const char *import_func, co
 
 
 // Funzione di supporto per generare messaggi di errore
-std::string GenerateErrorMessage(const char* context, const char* details) {
+std::string GenerateErrorMessage(const char* context, const std::string& details) {
     std::ostringstream oss;
     oss << "[HookImport Error] Context: " << context << " - Details: " << details;
     return oss.str();
 }
+
 bool PatchUtils::HookImport(const char *import_mod, const char *import_func, void *new_func, const char *mod, bool is_ordinal)
 {
     // Trova l'indirizzo dell'import
@@ -306,29 +310,28 @@ bool PatchUtils::HookImport(const char *import_mod, const char *import_func, voi
     if (!addr) {
         throw std::runtime_error(GenerateErrorMessage(
             "FindImport",
-            (const char)("Failed to locate import '") + *(import_func ? import_func : "Unknown") +
-            "' in module '" + *(mod ? mod : "Unknown") +  (const char)"'."
+            "Failed to locate import '" + std::string(import_func ? import_func : "Unknown") +
+            "' in module '" + std::string(mod ? mod : "Unknown") + "'."
         ));
     }
 
     // Protezione memoria ed effettivo hook
     try {
         #ifdef CPU_X86_64
-            // Scrivi l'indirizzo della nuova funzione per piattaforme a 64 bit
             PatchUtils::Write64(addr, (uint64_t)new_func);
         #else
-            // Scrivi l'indirizzo della nuova funzione per piattaforme a 32 bit
             PatchUtils::Write32(addr, (uint32_t)new_func);
         #endif
     } catch (const std::exception& e) {
         throw std::runtime_error(GenerateErrorMessage(
             "Memory Write",
-            (const char*)("Failed to write new function address to target. Reason: ") + *e.what()
+            std::string("Failed to write new function address to target. Reason: ") + e.what()
         ));
     }
 
     return true;
 }
+
 bool PatchUtils::Unhook(void *address)
 {
     return (MH_DisableHook(address) == MH_OK);
@@ -362,8 +365,11 @@ bool PatchUtils::Unhook(const char *mod, const char *func)
 bool PatchUtils::HookCall(void *call_addr, void **orig, void *new_addr)
 {
     uint8_t *ptr = (uint8_t *)call_addr;
-    if (*ptr != 0xE8 && *ptr != 0xE9)
+    if (*ptr != 0xE8 && *ptr != 0xE9){
+        DPRINTF("No calls to hook here: %p\n", call_addr);
         return false;
+
+    }
 
     int32_t rel = *(int32_t *)(ptr+1);
     uint32_t target = (uint32_t)new_addr - (uint32_t)call_addr - 5;
