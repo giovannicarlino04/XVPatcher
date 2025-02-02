@@ -74,11 +74,7 @@ const std::string &GetSlotsData()
 }
 int ExternalAS3CallbackPatched(void *custom_arg, void *iggy_obj, const char **pfunc_name)
 {
-    DPRINTF("custom_arg: %p, iggy_obj: %p, pfunc_name: %p (%s)\n", 
-            custom_arg, iggy_obj, pfunc_name, (pfunc_name && *pfunc_name) ? *pfunc_name : "(null)");
-    DPRINTF("ExternalAS3Callback - %p\n", ExternalAS3Callback);
-    DPRINTF("ExternalAS3CallbackPatched - %p\n", ExternalAS3CallbackPatched);
-    
+
 	if (!IggyPlayerCallbackResultPath)
 	{
 		HMODULE iggy = GetModuleHandle("iggy_w32.dll");
@@ -91,13 +87,14 @@ int ExternalAS3CallbackPatched(void *custom_arg, void *iggy_obj, const char **pf
     if (pfunc_name && *pfunc_name)
     {
         const char *func_name = *pfunc_name;
+		DPRINTF("%s\n", func_name);
 
-        if (strlen(func_name) > 3 && *(uint32_t *)func_name == XV_PATCHER_TAG)
+        if (strlen(func_name) > 3 && strstr(func_name, XV_PATCHER_TAG))
         {
             DPRINTF("Calling %s\n", func_name);
             
             func_name += 3;
-
+			
             if (strcmp(func_name, "GetSlotsData") == 0)
             {	
 				void *ret = IggyPlayerCallbackResultPath(iggy_obj);
@@ -140,8 +137,7 @@ void HookExternalAS3Callback()
         DPRINTF("Failed to change memory protection\n");
         return;
     }
-	DPRINTF("ADDR = %p\n", patchAddress);
-	DPRINTF("CLBK = %p\n", ExternalAS3Callback);
+
 
     // Scrivi la nuova istruzione (PUSH l'indirizzo della funzione patchata)
     BYTE patch[5];
@@ -162,7 +158,6 @@ void HookExternalAS3Callback()
         return;
     }
 
-    DPRINTF("ExternalAS3Callback successfully patched!\n");
 }
 void iggy_trace_callback(void *, void *, const char *str, size_t)
 {

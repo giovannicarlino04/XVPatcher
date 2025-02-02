@@ -27,7 +27,7 @@
 #define XVPATCHER_VERSION "1.06"
 #define MINIMUM_GAME_VERSION	L"ver.1.08.00"
 
-#define XV_PATCHER_TAG 0x505658
+#define XV_PATCHER_TAG "XVP"
 
 typedef HRESULT (* GetRenderTargetDataType)(IDirect3DDevice9 *pDevice, IDirect3DBaseTexture9 *pSrc, IDirect3DSurface9 *pDest);
 typedef IDirect3DBaseTexture9 *(* GetTextureBufferType)(void *);
