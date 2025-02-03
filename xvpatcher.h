@@ -43,8 +43,15 @@ typedef void (* IGGYSetWarningCallbackType)(void *callback, void *param);
 typedef void (* IggyForceBitmapSmoothingType)(bool bitmapSmoothingBool);
 typedef void (* IggyGenericSetTextureFromResourceType)(int param_1, unsigned short param_2, int param_3);
 typedef void (* IggyUseExplorerType)(int param_1,int param_2);
+typedef PUBLIC int (*  ExternalAS3CallbackType)(void *custom_arg, void *iggy_obj, const char **pfunc_name);
+typedef void * (* IggyPlayerCallbackResultPathType)(void *unk0);
+typedef void (*  IggyValueSetStringUTF8RSType)(void *arg1, void *unk2, void *unk3, const char *str, size_t length);
+typedef void (*  IggyValueSetS32RSType)(void *arg1, uint32_t unk2, uint32_t unk3, uint32_t value);
 
-
+static IggyPlayerCallbackResultPathType IggyPlayerCallbackResultPath;
+static IggyValueSetStringUTF8RSType IggyValueSetStringUTF8RS;
+static IggyValueSetS32RSType IggyValueSetS32RS;
+static ExternalAS3CallbackType ExternalAS3Callback;
 
 
 

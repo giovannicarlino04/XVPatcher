@@ -119,6 +119,8 @@ bool VersionStringPatch(HANDLE hProcess, uintptr_t moduleBaseAddress) {
     DPRINTF("Successfully applied Version String Patch\n");
     return true;
 }
+
+
 bool BacBcmPatch(HANDLE hProcess, uintptr_t moduleBaseAddress) {
     const char* newBytes1 = "\x90\x90\x75\x21\xC7";
 
