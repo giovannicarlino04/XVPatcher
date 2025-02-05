@@ -204,7 +204,7 @@ void iggy_warning_callback(void *, void *, uint32_t, const char *str)
 {
 	if (str)
 	{
-		if (strcmp(str, "\n") == 0 || strstr(str, "Cannot maintain framerate specified in SWF file") != nullptr)
+		if (strcmp(str, "\n") == 0 || strstr(str, "Uncaught exception TypeError non-callable object was called with $update in method updateButtons") != nullptr || strstr(str, "Cannot maintain framerate specified in SWF file") != nullptr)
 			return;
 	}
 	
@@ -600,6 +600,7 @@ extern "C" BOOL EXPORT DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvRe
         {
             HANDLE hProcess = GetCurrentProcess();
             uintptr_t moduleBaseAddress = GetModuleBaseAddress(L"DBXV.exe");
+            uintptr_t iggy = GetModuleBaseAddress(L"iggy_w32.dll");
 
             if (!load_dll(false))
                 return FALSE;
@@ -612,14 +613,14 @@ extern "C" BOOL EXPORT DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvRe
 			else{
 				return TRUE;
 			}
-
-            CMSPatches(hProcess, moduleBaseAddress);
+			IggyCrashPatch(hProcess, iggy);
+            CMSPatch(hProcess, moduleBaseAddress);
             VersionStringPatch(hProcess, moduleBaseAddress);
             BacBcmPatch(hProcess, moduleBaseAddress);
             InfiniteTimerPatch(hProcess, moduleBaseAddress);
 			HookExternalAS3Callback();
-			CpkFile *data, *data2, *datap1, *datap2, *datap3;
 			
+			CpkFile *data, *data2, *datap1, *datap2, *datap3;
 			if (get_cpk_tocs(&data, &data2, &datap1, &datap2, &datap3))
 			{
 				patch_toc(data);
