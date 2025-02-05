@@ -2,37 +2,48 @@
 #include <string.h>
 #include <stdlib.h>
 #include <windows.h>
+#include <fstream>
 
 #include "debug.h"
+#include "log.h"
 #include "patch.h"
 #include "symbols.h"
+#include <bits/chrono.h>
+#include "xvpatcher.h"
+#include <chrono>
+#include <ctime>
+#include <iostream>
+#include <fstream>
+#include <cstdarg>
+#include <cstring>
 
-#define DEBUG_BUFFER_SIZE	256
+#define DEBUG_BUFFER_SIZE 256
 
+
+// Define DebugPrintf with format attributes
 int __attribute__ ((format (printf, 1, 2))) DebugPrintf(const char* fmt, ...) 
 {
-	char *dbg;
-	va_list args;
+    char buffer[DEBUG_BUFFER_SIZE];  // Adjust the buffer size as needed
+    va_list args;
 
-	dbg = (char *)malloc(DEBUG_BUFFER_SIZE);
-	
-	if(!dbg)
-		return 0;
+    // Format the output into the buffer
+    va_start(args, fmt);
+    int len = vsnprintf(buffer, sizeof(buffer), fmt, args);
+    va_end(args);
 
-	va_start(args, fmt);
-	size_t len = vsnprintf(dbg, DEBUG_BUFFER_SIZE, fmt, args);
-	va_end(args);
+    // Output the formatted string to console
+    std::cout << "Debug: " << buffer << std::endl;
 
-	// Format the output
-	char buffer[512]; // Adjust buffer size as needed
-	vsnprintf(buffer, sizeof(buffer), fmt, args);
+    // Write the formatted string to the log file if open
+    if (logFile.is_open()) {
+        logFile << GetCurrentDateTime() << " " << buffer << std::endl;
+    } else {
+        std::cerr << "Log file is not open!" << std::endl;
+    }
 
-	// Output the formatted string to console
-	std::cout << "Debug: " << buffer;
-
-	free(dbg);
-	return len;
+    return len;
 }
+
 
 int __attribute__ ((format (printf, 1, 2))) UserPrintf(const char* fmt, ...) 
 {

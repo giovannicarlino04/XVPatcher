@@ -7,7 +7,7 @@
 #include <d3dcommon.h>
 #include <unordered_set>
 #include <cstdint>
-
+#include <fstream>
 
 #define EXPORT WINAPI __declspec(dllexport)
 #define PUBLIC EXPORT
@@ -22,9 +22,11 @@
 #define DATAP2_CPK		"datap2.cpk"
 #define DATAP3_CPK		"datap3.cpk"
 
-#define SLOTS_FILE      "./data/XVP_SLOTS.xs"
+#define SLOTS_FILE          "./data/XVP_SLOTS.xs"
+#define XVPATCHER_FOLDER    "./XVPATCHER/"
+#define LOG_FILE            XVPATCHER_FOLDER "/XVP.log"
 
-#define XVPATCHER_VERSION "1.06"
+#define XVPATCHER_VERSION       "1.06"
 #define MINIMUM_GAME_VERSION	L"ver.1.08.00"
 
 #define XV_PATCHER_TAG "XVP"

@@ -1,30 +1,21 @@
-#ifndef CPKDEF_HPP
-#define CPKDEF_HPP
+#include "cpkdef.h"
 
-#include <cstdio>
-#include "xvpatcher.h"
-#include "CpkFile.h"
-#include "debug.h"
-#include "patch.h"
-#include "symbols.h"
-#include <cstdint>
-#include <cstring>
+uint8_t (*cpk_file_exists)(void *, char *);
+
+uint64_t data_toc_offset, data_toc_size;
+uint64_t data2_toc_offset, data2_toc_size;
+uint64_t datap1_toc_offset, datap1_toc_size;
+uint64_t datap2_toc_offset, datap2_toc_size;
+uint64_t datap3_toc_offset, datap3_toc_size;
+
+uint8_t *data_toc, *data2_toc, *datap1_toc, *datap2_toc, *datap3_toc;
+uint8_t *data_hdr, *data2_hdr, *datap1_hdr, *datap2_hdr, *datap3_hdr;
+
+void **readfile_import;
+void *original_readfile;
 
 
-uint8_t (* __thiscall cpk_file_exists)(void *, char *);
-
-static uint64_t data_toc_offset, data_toc_size;
-static uint64_t data2_toc_offset, data2_toc_size;
-static uint64_t datap1_toc_offset, datap1_toc_size;
-static uint64_t datap2_toc_offset, datap2_toc_size;
-static uint64_t datap3_toc_offset, datap3_toc_size;
-
-static uint8_t *data_toc, *data2_toc, *datap1_toc, *datap2_toc, *datap3_toc;
-static uint8_t *data_hdr, *data2_hdr, *datap1_hdr, *datap2_hdr, *datap3_hdr;
-static void **readfile_import;
-static void *original_readfile;
-
-static uint8_t *read_file_from(const char *file,  uint64_t offset, unsigned int *psize)
+uint8_t *read_file_from(const char *file,  uint64_t offset, unsigned int *psize)
 {
 	HANDLE hFile;
 	LONG high;
@@ -67,7 +58,7 @@ static uint8_t *read_file_from(const char *file,  uint64_t offset, unsigned int 
 	return buf;
 }
 
-static CpkFile *get_cpk_toc(const char *file, uint64_t *toc_offset, uint64_t *toc_size, uint8_t **hdr_buf, uint8_t **toc_buf)
+CpkFile *get_cpk_toc(const char *file, uint64_t *toc_offset, uint64_t *toc_size, uint8_t **hdr_buf, uint8_t **toc_buf)
 {
 	unsigned rsize;
 	bool success = false;
@@ -135,7 +126,7 @@ clean:
 	return cpk;
 }
 
-static bool get_cpk_tocs(CpkFile **data, CpkFile **data2, CpkFile **datap1, CpkFile **datap2, CpkFile **datap3)
+bool get_cpk_tocs(CpkFile **data, CpkFile **data2, CpkFile **datap1, CpkFile **datap2, CpkFile **datap3)
 {
 	*data = get_cpk_toc(DATA_CPK, &data_toc_offset, &data_toc_size, &data_hdr, &data_toc);
 	if (!(*data))
@@ -180,7 +171,7 @@ static bool get_cpk_tocs(CpkFile **data, CpkFile **data2, CpkFile **datap1, CpkF
 	return true;
 }
 
-static bool local_file_exists( char *path)
+bool local_file_exists( char *path)
 {
 	HANDLE hFind;
 	WIN32_FIND_DATA wfd;
@@ -193,7 +184,7 @@ static bool local_file_exists( char *path)
 	return true;
 }
 
-static bool local_file_exists(FileEntry *entry)
+bool local_file_exists(FileEntry *entry)
 {
 	char *path;
 		
@@ -209,7 +200,7 @@ static bool local_file_exists(FileEntry *entry)
 	return ret;
 }
 
-static void patch_toc(CpkFile *cpk)
+void patch_toc(CpkFile *cpk)
 {
 	int count = 0;
 	size_t num_files = cpk->GetNumFiles();
@@ -228,7 +219,7 @@ static void patch_toc(CpkFile *cpk)
 	DPRINTF("%d files deleted in RAM.\n", count);
 }
 
-static bool IsThisFile(HANDLE hFile, const char *name)
+bool IsThisFile(HANDLE hFile, const char *name)
 {
 	static char path[MAX_PATH+1];
 	
@@ -242,8 +233,7 @@ static bool IsThisFile(HANDLE hFile, const char *name)
 	
 	return false;
 }
-
-static uint64_t GetFilePointer(HANDLE hFile)
+uint64_t GetFilePointer(HANDLE hFile)
 {
 	LONG high = 0;	
 	DWORD ret = SetFilePointer(hFile, 0, &high, FILE_CURRENT);
@@ -254,7 +244,7 @@ static uint64_t GetFilePointer(HANDLE hFile)
 	return (((uint64_t)high << 32) | (uint64_t)ret);
 }
 
-static BOOL WINAPI ReadFile_patched(HANDLE hFile, LPVOID lpBuffer, DWORD nNumberOfBytesToRead, LPDWORD lpNumberOfBytesRead, LPOVERLAPPED lpOverlapped)
+BOOL WINAPI ReadFile_patched(HANDLE hFile, LPVOID lpBuffer, DWORD nNumberOfBytesToRead, LPDWORD lpNumberOfBytesRead, LPOVERLAPPED lpOverlapped)
 {
 	static bool data_patched = false;
 	static bool data2_patched = false;
@@ -472,7 +462,7 @@ static BOOL WINAPI ReadFile_patched(HANDLE hFile, LPVOID lpBuffer, DWORD nNumber
 	return ReadFile(hFile, lpBuffer, nNumberOfBytesToRead, lpNumberOfBytesRead, lpOverlapped);
 }
 
-static uint8_t __thiscall cpk_file_exists_patched(void *object, char *file)
+ uint8_t __thiscall cpk_file_exists_patched(void *object, char *file)
 {
 	uint8_t ret = cpk_file_exists(object, file);
 	
@@ -495,8 +485,6 @@ void patches()
 	
 	original_readfile = *readfile_import;	
 	DPRINTF("Patch at %p\n", readfile_import);
-	WriteMemory32((void *)readfile_import, (uint32_t)ReadFile_patched);	
-
+	WriteMemory32((void *)readfile_import, (int32_t)ReadFile_patched);	
 	HookFunction(CPK_FILE_EXISTS_SYMBOL, (void **)&cpk_file_exists, (void *)cpk_file_exists_patched);	
 }
-#endif

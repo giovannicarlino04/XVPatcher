@@ -12,27 +12,25 @@
 #include <algorithm>
 #include <memory>
 #include <thread>
+#include <MinHook.h>
 
 #include "patch.h"
-#include "patches.hpp"
+#include "patches.h"
 #include "debug.h"
 #include "symbols.h"
-#include "CpkFile.h"
 #include "Mutex.h"
 #include "Utils.h"
 #include "PatchUtils.h"
 #include "IggyFile.h"
-#include "CpkDef.hpp"
+#include "cpkdef.h"
 #include "xvpatcher.h"
-#include <MinHook.h>
+#include "log.h"
 
 static HMODULE patched_dll;
 static Mutex mutex;
 HMODULE myself;
 std::string myself_path;
 wchar_t *version;
-
-
 
 std::string x2s_raw;
 
@@ -561,32 +559,26 @@ DWORD WINAPI StartThread(LPVOID)
 
 extern "C" BOOL EXPORT DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
 {
-       
-    HANDLE consoleHandle = nullptr;
-	AllocConsole();
-
-	consoleHandle = GetStdHandle(STD_OUTPUT_HANDLE);
-	if (consoleHandle == INVALID_HANDLE_VALUE)
-	{
-		return 1;
-	}
-
-	freopen("CONOUT$", "w", stdout);
-	freopen("CONOUT$", "w", stderr);
 
     switch (fdwReason)
     {
     case DLL_PROCESS_ATTACH:
     {
-
+        // Open the log file for writing, truncating the file to clear it at the start
+        logFile.open((std::string)LOG_FILE, std::ios::out | std::ios::trunc); 
+        if (!logFile.is_open()) {
+            return FALSE; // Return FALSE if we can't open the log file
+        }
         if (InGameProcess())
         {
             HANDLE hProcess = GetCurrentProcess();
             uintptr_t moduleBaseAddress = GetModuleBaseAddress(L"DBXV.exe");
             uintptr_t iggy = GetModuleBaseAddress(L"iggy_w32.dll");
 
-            if (!load_dll(false))
+            if (!load_dll(false)) {
+                logFile << "Failed to load DLL.\n";
                 return FALSE;
+            }
 
             version = RetrieveVersionString(hProcess, moduleBaseAddress);
 			if(version){
@@ -595,46 +587,43 @@ extern "C" BOOL EXPORT DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvRe
 			}
 			else{
 				return TRUE;
-			}
-			IggyCrashPatch(hProcess, iggy);
+			}            
             CMSPatch(hProcess, moduleBaseAddress);
             VersionStringPatch(hProcess, moduleBaseAddress);
             BacBcmPatch(hProcess, moduleBaseAddress);
             InfiniteTimerPatch(hProcess, moduleBaseAddress);
-			HookExternalAS3Callback();
+            HookExternalAS3Callback();
 			
 			CpkFile *data, *data2, *datap1, *datap2, *datap3;
-			if (get_cpk_tocs(&data, &data2, &datap1, &datap2, &datap3))
-			{
-				patch_toc(data);
-				patch_toc(data2);
-				patch_toc(datap1);
-				patch_toc(datap2);
-				patch_toc(datap3);
+            if (get_cpk_tocs(&data, &data2, &datap1, &datap2, &datap3))
+            {
 
-				data->RevertEncryption(false);
-				data2->RevertEncryption(false);
-				datap1->RevertEncryption(false);
-				datap2->RevertEncryption(false);
-				datap3->RevertEncryption(false);
+                patch_toc(data);
+                patch_toc(data2);
+                patch_toc(datap1);
+                patch_toc(datap2);
+                patch_toc(datap3);
 
-				patches();
+                data->RevertEncryption(false);
+                data2->RevertEncryption(false);
+                datap1->RevertEncryption(false);
+                datap2->RevertEncryption(false);
+                datap3->RevertEncryption(false);
 
-				delete data;
-				delete data2;
-				delete datap1;
-				delete datap2;
-				delete datap3;
-			}
+                patches();
 
+                delete data;
+                delete data2;
+                delete datap1;
+                delete datap2;
+                delete datap3;
+            }
 
-			/////////////////////////////////////////////
             if (!PatchUtils::HookImport("KERNEL32.dll", "GetStartupInfoW", (void *)GetStartupInfoW_Patched))
             {
-                UPRINTF("GetStartupInfoW hook failed.\n");
+                DPRINTF("GetStartupInfoW hook failed.\n");
                 return TRUE;
-            }   
-    
+            }
 
         }
         break;
@@ -643,12 +632,16 @@ extern "C" BOOL EXPORT DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvRe
     case DLL_PROCESS_DETACH:
     {
         if (!lpvReserved)
-        {
-            FreeConsole();
+        {	
+			logFile.flush();
+            logFile.close(); // Close the log file when the DLL is detached
             unload_dll();
         }
+        break;
     }
-    break;
+
+    default:
+        break;
     }
 
     return TRUE;
