@@ -211,18 +211,6 @@ void iggy_warning_callback(void *, void *, uint32_t, const char *str)
 	DPRINTF("%s\n", str);
 }
 
-static void IggySetWarningCallbackPatched(void *, void *param)
-{
-	HMODULE iggy = GetModuleHandle("iggy_w32.dll");
-	if (!iggy)
-		return;
-	
-	IGGYSetWarningCallbackType func = (IGGYSetWarningCallbackType)GetProcAddress(iggy, "_IggySetWarningCallback@8");
-	
-	if (func)
-		func((void *)iggy_warning_callback, param);
-
-}
 
 // The following functions are  more like a template setup for other similar functions
 // To understand how iggy works
@@ -558,11 +546,6 @@ VOID WINAPI GetStartupInfoW_Patched(LPSTARTUPINFOW lpStartupInfo)
             {
                 UPRINTF("Failed to hook import of _IggySetTraceCallbackUTF8@8.\n");                        
             }
-            if (!PatchUtils::HookImport("iggy_w32.dll", "_IggySetWarningCallback@8", (void *)IggySetWarningCallbackPatched))
-            {
-                UPRINTF("Failed to hook import of _IggySetWarningCallback@8.\n");                        
-            }   
-
         }
     }   
     GetStartupInfoW(lpStartupInfo);

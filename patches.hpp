@@ -117,43 +117,6 @@ bool VersionStringPatch(HANDLE hProcess, uintptr_t moduleBaseAddress) {
     return true;
 }
 
-bool IggyCrashPatch(HANDLE hProcess, uintptr_t moduleBaseAddress) {
-    const char* newBytes1 = "\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90";
-
-    LPVOID address1 = nullptr;
-    SIZE_T numberOfBytesWritten;
-    DWORD oldProtect;
-    DWORD newProtect = PAGE_EXECUTE_READWRITE;
-
-    if (moduleBaseAddress != 0) {
-        address1 = (LPVOID)(moduleBaseAddress + 0x00002F84);
-    }
-
-    ////////////////// PATCHES GO HERE ///////////////
-
-    if (address1 == nullptr) {
-        UPRINTF("Failed to calculate the address.\n");
-        return false;
-    }
-
-    if (!VirtualProtect(address1, strlen(newBytes1), newProtect, &oldProtect)) {
-        UPRINTF("Failed to change memory protection.\n");
-        return false;
-    }
-
-    if (!WriteProcessMemory(hProcess, address1, newBytes1, strlen(newBytes1), &numberOfBytesWritten)) {
-        UPRINTF("Failed to replace the bytes.\n");
-        return false;
-    }
-
-    if (!VirtualProtect(address1, strlen(newBytes1), oldProtect, &newProtect)) {
-        UPRINTF("Failed to restore memory protection.\n");
-        return false;
-    }
-
-    DPRINTF("Successfully applied IggyCrashFix Patch\n");
-    return true;
-}
 bool BacBcmPatch(HANDLE hProcess, uintptr_t moduleBaseAddress) {
     const char* newBytes1 = "\x90\x90\x75\x21\xC7";
 
