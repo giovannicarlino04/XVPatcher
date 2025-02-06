@@ -21,7 +21,7 @@
 #define DATAP1_CPK		"datap1.cpk"
 #define DATAP2_CPK		"datap2.cpk"
 #define DATAP3_CPK		"datap3.cpk"
-
+#define DATA_FOLDER     "data"
 #define SLOTS_FILE          "./data/XVP_SLOTS.xs"
 #define XVPATCHER_FOLDER    "./XVPATCHER/"
 #define LOG_FILE            XVPATCHER_FOLDER "/XVP.log"
@@ -30,6 +30,8 @@
 #define MINIMUM_GAME_VERSION	L"ver.1.08.00"
 
 #define XV_PATCHER_TAG "XVP"
+
+extern std::string myself_path;
 
 typedef HRESULT (* GetRenderTargetDataType)(IDirect3DDevice9 *pDevice, IDirect3DBaseTexture9 *pSrc, IDirect3DSurface9 *pDest);
 typedef IDirect3DBaseTexture9 *(* GetTextureBufferType)(void *);

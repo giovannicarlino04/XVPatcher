@@ -29,7 +29,6 @@
 static HMODULE patched_dll;
 static Mutex mutex;
 HMODULE myself;
-std::string myself_path;
 wchar_t *version;
 
 std::string x2s_raw;
@@ -384,7 +383,7 @@ static bool load_dll(bool critical)
 
 	GetModuleFileNameA(myself, mod_path, sizeof(mod_path));
 	
-	myself_path = Utils::NormalizePath(mod_path);
+	std::string myself_path = Utils::NormalizePath(mod_path);
 	myself_path = myself_path.substr(0, myself_path.rfind('/')+1);	
 	DPRINTF("Myself path = %s\n", myself_path.c_str());
 	DPRINTF("Slots path = %s\n", SLOTS_FILE);

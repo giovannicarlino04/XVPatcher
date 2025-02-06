@@ -171,19 +171,20 @@ bool get_cpk_tocs(CpkFile **data, CpkFile **data2, CpkFile **datap1, CpkFile **d
 	return true;
 }
 
-bool local_file_exists( char *path)
+bool local_file_exists(char *path)
 {
-	HANDLE hFind;
-	WIN32_FIND_DATA wfd;
-	
-	hFind = FindFirstFile(path, &wfd);
-	if (hFind == INVALID_HANDLE_VALUE)
-		return false;
-	
-	FindClose(hFind);	
-	return true;
-}
+    HANDLE hFind;
+    WIN32_FIND_DATA wfd;
 
+
+    hFind = FindFirstFile(path, &wfd);
+    if (hFind == INVALID_HANDLE_VALUE) {
+        return false;
+    }
+
+    FindClose(hFind);
+    return true;
+}
 bool local_file_exists(FileEntry *entry)
 {
 	char *path;
@@ -200,23 +201,25 @@ bool local_file_exists(FileEntry *entry)
 	return ret;
 }
 
+
 void patch_toc(CpkFile *cpk)
 {
-	int count = 0;
-	size_t num_files = cpk->GetNumFiles();
-	
-	for (size_t i = 0; i < num_files; i++)
-	{
-		FileEntry *file = cpk->GetFileAt(i);
-		
-		if (local_file_exists(file))
-		{
-			cpk->UnlinkFileFromDirectory(i);
-			count++;
-		}
-	}
-	
-	DPRINTF("%d files deleted in RAM.\n", count);
+    int count = 0;
+    size_t num_files = cpk->GetNumFiles();
+
+	DPRINTF("Starting TOC patching for CPK with %zu files.\n", num_files);
+
+    for (size_t i = 0; i < num_files; i++)
+    {
+        FileEntry *file = cpk->GetFileAt(i);
+
+        if (local_file_exists(file->file_name))
+        {
+            cpk->UnlinkFileFromDirectory(i);
+            count++;
+        }
+
+    }
 }
 
 bool IsThisFile(HANDLE hFile, const char *name)
@@ -470,7 +473,10 @@ BOOL WINAPI ReadFile_patched(HANDLE hFile, LPVOID lpBuffer, DWORD nNumberOfBytes
 	{
 		return local_file_exists(file);
 	}
-	
+
+	if(!local_file_exists(file) && !cpk_file_exists(object, file)){
+		DPRINTF("%s, File is neither in cpk nor in filesystem.\n", file);
+	}
 	return ret;
 }
 

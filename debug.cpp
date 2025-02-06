@@ -36,9 +36,9 @@ int __attribute__ ((format (printf, 1, 2))) DebugPrintf(const char* fmt, ...)
 
     // Write the formatted string to the log file if open
     if (logFile.is_open()) {
-        logFile << GetCurrentDateTime() << " " << buffer << std::endl;
+        logFile << GetCurrentDateTime() << " " << buffer;
     } else {
-        std::cerr << "Log file is not open!" << std::endl;
+        std::cerr << "Log file is not open!";
     }
 
     return len;
