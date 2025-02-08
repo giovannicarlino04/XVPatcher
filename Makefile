@@ -5,9 +5,9 @@ OUTPUT := xinput1_3.dll
 OUTPUT_COPY_UNIX := "/home/giovanni/.local/share/Steam/steamapps/common/DB Xenoverse/xinput1_3.dll"
 OUTPUT_COPY_WINDOWS = "D:\SteamLibrary\steamapps\common\DB Xenoverse"
 
-OBJS := main.o debug.o CpkFile.o cpkdef.o BaseFile.o patch.o patches.o PatchUtils.o Utils.o MemoryStream.o FixedMemoryStream.o Stream.o IggyFile.o log.o
-OBJS += ./crypto/sha1.o ./crypto/md5.o ./crypto/rijndael.o
-OBJS += ./tinyxml/tinystr.o ./tinyxml/tinyxml.o ./tinyxml/tinyxmlerror.o ./tinyxml/tinyxmlparser.o
+SRCS := $(wildcard *.cpp) $(wildcard ./crypto/*.c) $(wildcard ./tinyxml/*.cpp)
+OBJS := $(SRCS:.cpp=.o)
+
 CFLAGS := -Wall -I. -I./ -std=gnu99 -mms-bitfields -s -O2 -masm=intel -shared -Wl,--subsystem,windows,--kill-at,--enable-stdcall-fixup -DNO_ZLIB -fpermissive
 CPPFLAGS := -Wall -O2 -mno-ms-bitfields -std=c++11 -DTIXML_USE_STL -DNO_ZLIB
 CXXFLAGS := -Wall -Wno-strict-aliasing -I./ -O2 -std=c++11 -mms-bitfields -DTIXML_USE_STL -fpermissive

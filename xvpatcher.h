@@ -8,6 +8,7 @@
 #include <unordered_set>
 #include <cstdint>
 #include <fstream>
+#include "IniFile.h"
 
 #define EXPORT WINAPI __declspec(dllexport)
 #define PUBLIC EXPORT
@@ -22,16 +23,28 @@
 #define DATAP2_CPK		"datap2.cpk"
 #define DATAP3_CPK		"datap3.cpk"
 #define DATA_FOLDER     "data"
+#define CONTENT_ROOT        "./"
 #define SLOTS_FILE          "./data/XVP_SLOTS.xs"
 #define XVPATCHER_FOLDER    "./XVPATCHER/"
-#define LOG_FILE            XVPATCHER_FOLDER "/XVP.log"
+#define PATCHES_PATH        "./XVPATCHER/EPatches"
+#define INI_PATH            "./XVPATCHER/xvpatcher.ini"
+#define LOG_FILE            "./XVPATCHER/xv1_log.txt"
 
-#define XVPATCHER_VERSION       "1.06"
+#define XVPATCHER_VERSION       "1.10"
 #define MINIMUM_GAME_VERSION	L"ver.1.08.00"
 
 #define XV_PATCHER_TAG "XVP"
 
+#define MY_DUMP_BASE	(0x1390000)
+
+#define DPRINTF1_SYMBOL				(0x18AEBD3-MY_DUMP_BASE)
+#define DPRINTF2_SYMBOL				(0x18AEBBB-MY_DUMP_BASE)
+
+#define CPK_OPEN_FILE_SYMBOL		(0x192A6B8-MY_DUMP_BASE)
+#define CPK_FILE_EXISTS_SYMBOL		(0x176B4E0-MY_DUMP_BASE)
+
 extern std::string myself_path;
+extern IniFile ini;
 
 typedef HRESULT (* GetRenderTargetDataType)(IDirect3DDevice9 *pDevice, IDirect3DBaseTexture9 *pSrc, IDirect3DSurface9 *pDest);
 typedef IDirect3DBaseTexture9 *(* GetTextureBufferType)(void *);
@@ -40,22 +53,10 @@ typedef IDirect3DBaseTexture9 *(* GetTextureBufferType)(void *);
 static GetRenderTargetDataType _GetRenderTargetData;
 static GetTextureBufferType GetTextureBuffer;
 
-
 typedef  void (* IGGYSetTraceCallbackType)(void *callback, void *param);
 typedef  void (* IGGYSetWarningCallbackType)(void *callback, void *param);
-typedef  void (* IggyForceBitmapSmoothingType)(bool bitmapSmoothingBool);
-typedef  void (* IggyGenericSetTextureFromResourceType)(int param_1, unsigned short param_2, int param_3);
-typedef  void (* IggyUseExplorerType)(int param_1,int param_2);
-typedef PUBLIC int (*  ExternalAS3CallbackType)(void *custom_arg, void *iggy_obj, const char **pfunc_name);
-typedef  void * (* IggyPlayerCallbackResultPathType)(void *unk0);
-typedef  void (*  IggyValueSetStringUTF8RSType)(void *arg1, void *unk2, void *unk3, const char *str, size_t length);
-typedef  void (*  IggyValueSetS32RSType)(void *arg1, uint32_t unk2, uint32_t unk3, uint32_t value);
 
-static IggyPlayerCallbackResultPathType IggyPlayerCallbackResultPath;
-static IggyValueSetStringUTF8RSType IggyValueSetStringUTF8RS;
-static IggyValueSetS32RSType IggyValueSetS32RS;
-static ExternalAS3CallbackType ExternalAS3Callback;
+extern void iggy_trace_callback(void *, void *, const char *str, size_t);
+extern void iggy_warning_callback(void *, void *, uint32_t, const char *str);
 
-
-extern void iggy_trace_callback(void *param, void *unk, const char *str, size_t len);
 #endif

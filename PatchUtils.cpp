@@ -3,6 +3,7 @@
 #include <vector>
 #include "PatchUtils.h"
 #include "debug.h"
+#include <iostream>
 
 #define MB_1    0x100000
 #define GB_2    0x80000000
@@ -570,7 +571,6 @@ LONG CALLBACK mbp_handler(PEXCEPTION_POINTERS ExceptionInfo)
 
     return EXCEPTION_CONTINUE_SEARCH;
 }
-
 bool PatchUtils::SetMemoryBreakpoint(void *addr, size_t len, MemoryBreakpointHandler handler)
 {
     static bool handler_created = false;
