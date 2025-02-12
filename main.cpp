@@ -661,6 +661,7 @@ static bool in_game_process()
 	return (strstr(szPath, PROCESS_NAME) != NULL);
 }
 
+
 extern "C" BOOL WINAPI EXPORT DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
 {
 	switch (fdwReason)
@@ -674,7 +675,7 @@ extern "C" BOOL WINAPI EXPORT DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOI
 			if (in_game_process())
 			{					
 				HookExternalAS3Callback();
-				CreateMutexA(nullptr, FALSE, "XV2PATCHER_INSTANCE");
+				CreateMutexA(nullptr, FALSE, "XVPATCHER_INSTANCE");
 				if (GetLastError() == ERROR_ALREADY_EXISTS)
 				{
 					UPRINTF("An instance of xvpatcher already exists.\n"
@@ -683,7 +684,8 @@ extern "C" BOOL WINAPI EXPORT DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOI
 				}
 					
 				XVPStart();   
-
+				HMODULE moduleBase = GetModuleHandle("DBXV.exe");
+				NewRaces(moduleBase, raceName);
 				load_dll(false);
 
 				if (!PatchUtils::HookImport("KERNEL32.dll", "GetStartupInfoW", (void *)GetStartupInfoW_Patched))
