@@ -8,6 +8,7 @@
 #include "debug.h"
 #include "UtilsStr.h"
 #include "PatchUtils.h"
+#include "IniFile.h"
 
 #define DEBUG_BUFFER_SIZE_EXTRA	1024
 #define DEBUG_FILE LOG_FILE
@@ -16,6 +17,7 @@ static int debug_level;
 static FILE *file;
 
 extern DWORD initial_tick;
+extern IniFile ini;
 
 static void local_tick(uint32_t *H, uint32_t *MM, uint32_t *SS, uint32_t *mmm)
 {
@@ -84,7 +86,9 @@ int __attribute__ ((format (printf, 1, 2))) DebugPrintf(const char* fmt, ...)
 	{
 		MessageBoxA(NULL, dbg, "XVPatcher", 0);
 	}
-	
+	bool console_logger;
+	if(ini.GetBooleanValue("Debug", "console_logger", &console_logger, false))
+		printf(fmt, dbg);
 	free(dbg);
 	return len;
 }

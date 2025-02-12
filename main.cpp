@@ -154,7 +154,6 @@ PUBLIC int ExternalAS3CallbackPatched(void *custom_arg, void *iggy_obj, const ch
 
 void HookExternalAS3Callback()
 {
-    // Ottieni l'indirizzo base del modulo
     HMODULE mba = GetModuleHandle("DBXV.exe");
     if (!mba)
     {
@@ -163,14 +162,11 @@ void HookExternalAS3Callback()
     }
     HANDLE hProcess = GetCurrentProcess();
 
-    // L'indirizzo della funzione patchata
     void* patchedFunction = (void*)&ExternalAS3CallbackPatched;
 
-    // Ottieni l'indirizzo della funzione da patchare
     void* patchAddress = (void*)((BYTE*)mba + 0x34A03B);
 	ExternalAS3Callback = (ExternalAS3CallbackType)((void*)((BYTE*)mba + 0x34B1D0)); //0x34B1D0
 
-    // Cambia la protezione della memoria per permettere la scrittura
     DWORD oldProtect;
     if (!VirtualProtectEx(hProcess, patchAddress, 4, PAGE_EXECUTE_READWRITE, &oldProtect))
     {
@@ -179,19 +175,16 @@ void HookExternalAS3Callback()
     }
 
 
-    // Scrivi la nuova istruzione (PUSH l'indirizzo della funzione patchata)
     BYTE patch[5];
-    patch[0] = 0x68; // Codice opcode per PUSH
-    *(DWORD*)&patch[1] = (DWORD)ExternalAS3CallbackPatched; // Indirizzo della funzione patchata
+    patch[0] = 0x68;
+    *(DWORD*)&patch[1] = (DWORD)ExternalAS3CallbackPatched; 
 
-    // Scrivi in memoria
     if (!WriteProcessMemory(hProcess, patchAddress, patch, sizeof(patch), NULL))
     {
         DPRINTF("Failed to write memory\n");
         return;
     }
 
-    // Ripristina la protezione della memoria
     if (!VirtualProtectEx(hProcess, patchAddress, 5, oldProtect, &oldProtect))
     {
         DPRINTF("Failed to restore memory protection\n");
@@ -462,14 +455,24 @@ VOID WINAPI GetStartupInfoW_Patched(LPSTARTUPINFOW lpStartupInfo)
 		ini.AddIntegerConstant("auto", 0);
 		set_debug_level(default_log_level);				
 	
-		bool iggy_trace, iggy_warning, exception_handler, loose_files;
-		
+		bool iggy_trace, iggy_warning, exception_handler, loose_files, console_logger;
 		started = true;
+
 		ini.GetBooleanValue("Patches", "iggy_trace", &iggy_trace, false);
 		ini.GetBooleanValue("Patches", "iggy_warning", &iggy_warning, false);
 		ini.GetBooleanValue("Debug", "exception_handler", &exception_handler, false);
 		ini.GetBooleanValue("Patches", "loose_files", &loose_files, false);
+		ini.GetBooleanValue("Debug", "console_logger", &console_logger, false);
 
+		if(console_logger){
+			if (AllocConsole())
+			{
+				freopen("CONOUT$", "w", stdout);
+				freopen("CONOUT$", "w", stderr);
+				DPRINTF("Console allocated for patch logging.\n");
+			}
+		}
+		
 		if(loose_files){
 
 			CpkFile *data, *data2, *datap1, *datap2, *datap3;
@@ -633,41 +636,94 @@ static bool load_patch_file(const std::string &path, bool is_directory, void *cu
 
 static void load_patches()
 {
-	ini.GetBooleanValue("Debug", "count_patches_failures", &count_patches_failures, false);	
-	num_patches_fail = 0;
-	
-	Utils::VisitDirectory(myself_path+PATCHES_PATH, true, false, false, load_patch_file);
-	
-	if (count_patches_failures && num_patches_fail > 0)
-	{
-		UPRINTF("The following number of patches failed:%d\n", num_patches_fail);
-		exit(-1);
-	}
+
+    ini.GetBooleanValue("Debug", "count_patches_failures", &count_patches_failures, false);
+    
+    num_patches_fail = 0;
+    
+    Utils::VisitDirectory(myself_path + PATCHES_PATH, true, false, false, load_patch_file);
+
+    if (count_patches_failures && num_patches_fail > 0)
+    {
+        DPRINTF("The following number of patches failed: %d\n", num_patches_fail);
+        exit(-1);
+    }
+
+ 
 }
+
+wchar_t* RetrieveVersionString(HANDLE hProcess, uintptr_t moduleBaseAddress) {
+    const wchar_t* versionString = L"ver.1.08.00";
+    const size_t patchsize = (wcslen(versionString) + 1) * sizeof(wchar_t); // Include null terminator
+    wchar_t buf[patchsize / sizeof(wchar_t)] = {}; // Buffer per contenere i dati letti
+
+    LPVOID address1 = nullptr;
+    SIZE_T numberOfBytesRead;
+
+    if (moduleBaseAddress != 0) {
+        address1 = (LPVOID)(moduleBaseAddress + 0x11ACFB4);
+    }
+
+    if (address1 == nullptr) {
+        UPRINTF("Failed to calculate the address.\n");
+        return nullptr;
+    }
+
+    if (!ReadProcessMemory(hProcess, address1, buf, patchsize, &numberOfBytesRead)) {
+        UPRINTF("Failed to read the version bytes.\n");
+        return nullptr;
+    }
+
+    DPRINTF("Successfully checked Version String: %ls\n", buf);
+
+    wchar_t* result = (wchar_t*)malloc(patchsize);
+    if (result) {
+        wcscpy(result, buf);
+    }
+
+    return result;
+}
+
 bool XVPStart(){
 	LPCWSTR my_dll_name = L"xinput1_3.dll";
 	DPRINTF("XVPATCHER VERSION " XVPATCHER_VERSION ". Exe base = %p. My Dll base = %p. My dll name: %ls\n", GetModuleHandle(NULL), GetModuleHandleW(my_dll_name), my_dll_name);	
+
+	HANDLE hProcess = GetCurrentProcess();
+	uintptr_t moduleBaseAddress = (uintptr_t)GetModuleHandle("DBXV.exe");
+
+	wchar_t* version = RetrieveVersionString(hProcess, moduleBaseAddress);
+
+	if(!version){
+		UPRINTF("Exe version not found, how tf did it get lost in the first place idk\n");
+		return false;
+	}
+	
+	DPRINTF("Running on game version %ls\n", version);
+
+	if(wcscmp(version,	MINIMUM_GAME_VERSION) != 0){
+		UPRINTF("Unable to patch game version %ls, please update your game\n", version);
+		return false;
+	}
+
 	load_patches();
+	free(version);
+
 	return true;
 }
+
 static bool in_game_process()
 {
 	char szPath[MAX_PATH];
-	
 	GetModuleFileName(NULL, szPath, MAX_PATH);
 	_strlwr(szPath);
-	
-	// A very poor aproach, I know
 	return (strstr(szPath, PROCESS_NAME) != NULL);
 }
-
 
 extern "C" BOOL WINAPI EXPORT DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
 {
 	switch (fdwReason)
 	{
 		case DLL_PROCESS_ATTACH:
-		
 
 			initial_tick = GetTickCount();
 			set_debug_level(2); 	
@@ -685,7 +741,6 @@ extern "C" BOOL WINAPI EXPORT DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOI
 					
 				XVPStart();   
 				HMODULE moduleBase = GetModuleHandle("DBXV.exe");
-				NewRaces(moduleBase, raceName);
 				load_dll(false);
 
 				if (!PatchUtils::HookImport("KERNEL32.dll", "GetStartupInfoW", (void *)GetStartupInfoW_Patched))
@@ -699,8 +754,14 @@ extern "C" BOOL WINAPI EXPORT DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOI
 		
 		case DLL_PROCESS_DETACH:		
 			
-			if (!lpvReserved)
+			if (!lpvReserved){
 				unload_dll();
+				if (GetConsoleWindow())
+				{
+					FreeConsole();
+					DPRINTF("Console freed after patch loading.\n");
+				}
+			}
 			
 		break;
 	}
