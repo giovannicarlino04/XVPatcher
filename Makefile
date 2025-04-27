@@ -3,7 +3,7 @@ CXX := i686-w64-mingw32-g++
 
 OUTPUT := xinput1_3.dll
 OUTPUT_COPY_UNIX := "/home/giovanni/.local/share/Steam/steamapps/common/DB Xenoverse/xinput1_3.dll"
-OUTPUT_COPY_WINDOWS = "D:\SteamLibrary\steamapps\common\DB Xenoverse"
+OUTPUT_COPY_WINDOWS = "C:\Program Files (x86)\Steam\steamapps\common\DB Xenoverse"
 
 SRCS := $(wildcard *.cpp) $(wildcard ./crypto/*.c) $(wildcard ./tinyxml/*.cpp)
 OBJS := $(SRCS:.cpp=.o)
