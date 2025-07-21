@@ -61,8 +61,7 @@
     "variant": "cpp",
     "unordered_set": "cpp",
     "chrono": "cpp",
-    "iomanip": "cpp",
-    "codecvt": "cpp"
+    "iomanip": "cpp"
   },
   "C_Cpp_Runner.cCompilerPath": "gcc",
   "C_Cpp_Runner.cppCompilerPath": "g++",

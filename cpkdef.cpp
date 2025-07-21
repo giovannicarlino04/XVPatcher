@@ -1,5 +1,4 @@
 #include "cpkdef.h"
-#include "patch.h"
 
 uint8_t (*cpk_file_exists)(void *, char *);
 
@@ -176,17 +175,16 @@ bool local_file_exists(char *path)
 {
     HANDLE hFind;
     WIN32_FIND_DATA wfd;
-    
+
+
     hFind = FindFirstFile(path, &wfd);
-    if (hFind == INVALID_HANDLE_VALUE)
-    {
-        return 0;
+    if (hFind == INVALID_HANDLE_VALUE) {
+        return false;
     }
 
-    FindClose(hFind);    
-    return 1;
+    FindClose(hFind);
+    return true;
 }
-
 bool local_file_exists(FileEntry *entry)
 {
 	char *path;
@@ -203,35 +201,25 @@ bool local_file_exists(FileEntry *entry)
 	return ret;
 }
 
+
 void patch_toc(CpkFile *cpk)
 {
-	int count = 0;
-	size_t num_files = cpk->GetNumFiles();
-	
-	for (size_t i = 0; i < num_files; i++)
-	{
-		FileEntry *file = cpk->GetFileAt(i);
-		
-		if (local_file_exists(file))
-		{
-			cpk->UnlinkFileFromDirectory(i);
-			//DPRINTF("%s - File found in data folder.\n", file->file_name);
-			count++;
-		}
-		else if(cpk->GetFileAt(i)){
-			//DPRINTF("%s - File found in CPK.\n", file->file_name);
-			count++;
-		}
-		else
-		{
-			DPRINTF("%s - File not found.\n", file->file_name);
-			count++;
-		}
+    int count = 0;
+    size_t num_files = cpk->GetNumFiles();
 
-	}
-	
-	DPRINTF("%d files deleted in RAM.\n", count);
-	
+	DPRINTF("Starting TOC patching for CPK with %zu files.\n", num_files);
+
+    for (size_t i = 0; i < num_files; i++)
+    {
+        FileEntry *file = cpk->GetFileAt(i);
+
+        if (local_file_exists(file->file_name))
+        {
+            cpk->UnlinkFileFromDirectory(i);
+            count++;
+        }
+
+    }
 }
 
 bool IsThisFile(HANDLE hFile, const char *name)
@@ -270,7 +258,7 @@ BOOL WINAPI ReadFile_patched(HANDLE hFile, LPVOID lpBuffer, DWORD nNumberOfBytes
 	if (data_patched && data2_patched && datap1_patched && datap2_patched && datap3_patched)
 	{
 		DPRINTF("Main patch is finished. Unhooking function.\n");
-		PatchUtils::Write32((void *)readfile_import, (uint32_t)original_readfile);
+		WriteMemory32((void *)readfile_import, (uint32_t)original_readfile);
 		
 		delete[] data_toc;
 		delete[] data2_toc;
@@ -477,21 +465,19 @@ BOOL WINAPI ReadFile_patched(HANDLE hFile, LPVOID lpBuffer, DWORD nNumberOfBytes
 	return ReadFile(hFile, lpBuffer, nNumberOfBytesToRead, lpNumberOfBytesRead, lpOverlapped);
 }
 
-uint8_t __thiscall cpk_file_exists_patched(void *object, char *file)
+ uint8_t __thiscall cpk_file_exists_patched(void *object, char *file)
 {
-    uint8_t ret = cpk_file_exists(object, file);
+	uint8_t ret = cpk_file_exists(object, file);
+	
+	if (ret == 0)
+	{
+		return local_file_exists(file);
+	}
 
-    if (ret == 0)
-    {
-        ret = local_file_exists(file);
-		if(ret == 0)
-		{
-
-		}
-
-    }
-
-    return ret;
+	if(!local_file_exists(file) && !cpk_file_exists(object, file)){
+		DPRINTF("%s, File is neither in cpk nor in filesystem.\n", file);
+	}
+	return ret;
 }
 
 void patches()

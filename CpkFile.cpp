@@ -175,7 +175,7 @@ bool CpkUTF::Load(uint8_t *buf)
 			}
 			
 			current_row.type = columns[i].flags & TYPE_MASK;
-			current_row.position = Utils::DifPointer(row_ptr, table_hdr);
+			current_row.position = DifPointer(row_ptr, table_hdr);
 
 			switch (current_row.type)
 			{
@@ -220,7 +220,7 @@ bool CpkUTF::Load(uint8_t *buf)
 					current_row.u1.data = GetOffsetPtr(data, *(uint32_t *)row_ptr);		
 					current_row.data_size = *(uint32_t *)(row_ptr + 4);
 					row_ptr += 8;
-					current_row.position = Utils::DifPointer(current_row.u1.data, table_hdr);
+					current_row.position = DifPointer(current_row.u1.data, table_hdr);
 				break;
 
 				default: 
@@ -475,14 +475,14 @@ bool CpkFile::ParseHeaderData(uint8_t *buf)
 	
 	DPRINTF("This CPK is sorted: %s\n", (sorted) ? "true" : "false");
 	
-	uint64_t toc_crc = GetColumnDataAsInteger(utf, 0, "TocCrc");	
+	/*uint64_t toc_crc = GetColumnDataAsInteger(utf, 0, "TocCrc");	
 	printf("Toc_crc=%I64x\n", toc_crc);	
 		
 	printf("Toc offs=%I64x, size=%I64x\n", toc_offset, toc_size);
 	printf("Etoc offs=%I64x, size=%I64x\n", etoc_offset, etoc_size);
 	printf("Itoc offs=%I64x, size=%I64x\n", itoc_offset, itoc_size);
 	printf("Gtoc offs=%I64x, size=%I64x\n", gtoc_offset, gtoc_size);
-	printf("Cont offs=%I64x, size=%I64x\n", content_offset, content_size);
+	printf("Cont offs=%I64x, size=%I64x\n", content_offset, content_size);*/
 	
 	return true;
 }
