@@ -1,22 +1,25 @@
 #include "MemoryStream.h"
 #include "debug.h"
-#include <cstring>
-#include <iostream>
-#include <fstream>
 
-#define GROW_SIZE	(16*1024*1024)
-
-MemoryStream::MemoryStream()
-{
-	big_endian = false;
-	mem = nullptr;	
-	file_size = file_pos = capacity = 0;
-}
 
 MemoryStream::~MemoryStream()
 {
 	if (mem)
         delete[] mem;
+}
+
+void MemoryStream::Copy(const MemoryStream &other)
+{
+    if (mem)
+        delete[] mem;
+
+    mem = new uint8_t[other.capacity];
+    memcpy(mem, other.mem, other.capacity);
+
+    file_size = other.file_size;
+    file_pos = other.file_pos;
+    capacity = other.capacity;
+    grow_size = other.grow_size;
 }
 
 uint8_t *MemoryStream::GetMemory(bool unlink)
@@ -56,11 +59,13 @@ bool MemoryStream::FastRead(uint8_t **pbuf, size_t size)
     *pbuf = mem+file_pos;
     file_pos += size;
 
+    assert(file_pos <= file_size);
     return true;
 }
 
 bool MemoryStream::Resize(uint64_t size)
 {
+	assert(file_size <= capacity);
 	
 	if (size == 0)
 	{
@@ -78,9 +83,10 @@ bool MemoryStream::Resize(uint64_t size)
 	{
 		if (!mem)
 		{
+			assert(file_size == 0 && file_pos == 0 && capacity == 0);
 		}
 		
-		size_t alloc_size = (size >= (capacity+GROW_SIZE)) ? size : capacity+GROW_SIZE;
+        size_t alloc_size = (size >= (capacity+grow_size)) ? size : capacity+grow_size;
         uint8_t *new_mem;
 
         new_mem = new uint8_t[alloc_size];
@@ -119,6 +125,7 @@ bool MemoryStream::Read(void *buf, size_t size)
 	memcpy(buf, mem+file_pos, size);
 	file_pos += size;
 	
+	assert(file_pos <= file_size);		
 	return true;
 }
 
@@ -126,19 +133,20 @@ bool MemoryStream::Write(const void *buf, size_t size)
 {
 	if (!mem)
 	{
-		if (!Grow(size))
+        if (!Grow((int64_t)size))
 			return false;
 	}
 	
 	else if (file_pos+size > file_size)
 	{
-		if (!Grow(file_pos+size-file_size))
+        if (!Grow((int64_t)(file_pos+size-file_size)))
 			return false;
 	}
 	
 	memcpy(mem+file_pos, buf, size);
 	file_pos += size;
 	
+	assert(file_pos <= file_size);	
 	return true;
 }
 
@@ -148,15 +156,15 @@ bool MemoryStream::Seek(int64_t offset, int whence)
 	
 	if (whence == SEEK_SET)
 	{
-		new_pos = offset;
+        new_pos = (size_t)offset;
 	}
 	else if (whence == SEEK_CUR)
 	{
-		new_pos = file_pos + offset;
+        new_pos = (size_t)((int64_t)file_pos + offset);
 	}
 	else if (whence == SEEK_END)
 	{
-		new_pos = file_size + offset;
+        new_pos = (size_t)((int64_t)file_size + offset);
 	}
 	else
 	{
@@ -194,27 +202,14 @@ uint8_t *MemoryStream::Save(size_t *psize)
 	return buf;
 }
 
-off64_t GetFileSize(const std::string& filename) {
-    std::ifstream file(filename, std::ios::binary | std::ios::ate);
-    if (!file.is_open()) {
-        std::cerr << "Unable to open file: " << filename << std::endl;
-        return -1; // Return -1 to indicate an error
-    }
-
-    off64_t file_size = static_cast<off64_t>(file.tellg());
-    file.close();
-
-    return file_size;
-}
-
 bool MemoryStream::LoadFromFile(const std::string &path, bool show_error)
 {
-	size_t size = GetFileSize(path);	
+	size_t size = Utils::GetFileSize(path);	
 	if (size == (size_t)-1)
 	{
 		if (show_error)
 		{
-			DPRINTF("%s: Cannot stat file \"%s\"\n", path.c_str());
+			DPRINTF("%s: Cannot stat file \"%s\"\n", FUNCNAME, path.c_str());
 		}
 		
 		return false;
@@ -225,7 +220,7 @@ bool MemoryStream::LoadFromFile(const std::string &path, bool show_error)
 	{
 		if (show_error)
 		{
-			DPRINTF("%s: Cannot open file \"%s\".\n", path.c_str());
+			DPRINTF("%s: Cannot open file \"%s\".\n", FUNCNAME, path.c_str());
 		}
 		
 		return false;
@@ -247,39 +242,9 @@ bool MemoryStream::LoadFromFile(const std::string &path, bool show_error)
 	return true;
 }
 
-bool WriteFileBool(const std::string& path, const uint8_t* mem, size_t file_size, bool show_error, bool build_path) {
-    std::ofstream file;
-    if (build_path) {
-        file.open(path, std::ofstream::out | std::ofstream::binary);
-    } else {
-        file.open(path, std::ofstream::out | std::ofstream::binary | std::ofstream::trunc);
-    }
-
-    if (!file.is_open()) {
-        if (show_error) {
-            std::cerr << "Unable to open file: " << path << std::endl;
-        }
-        return false; // Failed to open the file
-    }
-
-    file.write(reinterpret_cast<const char*>(mem), file_size);
-
-    if (file.fail()) {
-        if (show_error) {
-            std::cerr << "Error writing to file: " << path << std::endl;
-        }
-        file.close();
-        return false;
-    }
-
-    file.close();
-    return true; // Successfully wrote the memory buffer to the file
-}
-
-
 bool MemoryStream::SaveToFile(const std::string &path, bool show_error, bool build_path)
 {
-    return WriteFileBool(path, mem, file_size, show_error, build_path);
+    return Utils::WriteFileBool(path, mem, file_size, show_error, build_path);
 }
 
 bool MemoryStream::Align(unsigned int alignment)

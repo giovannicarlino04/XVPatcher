@@ -51,7 +51,6 @@ namespace PatchUtils
     bool Hook(void *address, void **orig, void *new_func);
 	bool Hook(size_t rel_address, void **orig, void *new_func, const char *mod=nullptr);
     bool Hook(const char *mod, const char *func, void **orig, void *new_func);
-
     void *FindImport(const char *import_mod, const char *import_func, const char *mod=nullptr, bool is_ordinal=false);
     bool HookImport(const char *import_mod, const char *import_func, void *new_func, const char *mod=nullptr, bool is_ordinal=false);
 
